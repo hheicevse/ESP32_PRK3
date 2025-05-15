@@ -1,0 +1,21 @@
+[ req ]
+default_bits        = 2048
+prompt              = no
+default_md          = sha256
+distinguished_name  = dn
+req_extensions      = req_ext
+
+[ dn ]
+C                   = TW
+ST                  = Taipei
+L                   = Taipei
+O                   = MyIOT Inc
+OU                  = Dev
+CN                  = 192.168.3.153
+emailAddress        = you@example.com
+
+[ req_ext ]
+subjectAltName      = @alt_names
+
+[ alt_names ]
+IP.1                = 192.168.3.153

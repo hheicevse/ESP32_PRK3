@@ -1,0 +1,9 @@
+.pio
+.vscode
+
+# 忽略資料夾內所有內容
+keys/*
+# 但不要忽略（取消忽略）
+!keys/openssl-san.cnf
+!keys/ota_build_key.py
+!keys/ota_server_ca.py
