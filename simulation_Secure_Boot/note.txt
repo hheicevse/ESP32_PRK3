@@ -1,0 +1,39 @@
+
+
+✅ 步驟總覽
+
+*****************************************
+你可以重新產生 RSA-2048 的金鑰：
+# 產生 2048 bit RSA 私鑰
+openssl genpkey -algorithm RSA -out private.pem -pkeyopt rsa_keygen_bits:2048
+
+# 產生對應公鑰
+openssl rsa -in private.pem -pubout -out public.pem
+
+
+把public.pem內容複製到程式碼裡
+build code , 將firmware.bin拿出來
+
+
+然後重新產生簽章：
+openssl dgst -sha256 -sign private.pem -out firmware.sig firmware.bin
+
+驗證是否正確：
+openssl dgst -sha256 -verify public.pem -signature firmware.sig firmware.bin
+Verified OK
+
+
+
+server端
+python -m http.server 8000
+
+
+
+*********************************************
+
+先下載 git clone https://github.com/espressif/esp-idf.git
+
+pip install pycryptodome
+
+檔案路徑會在：
+esp-idf/components/esptool_py/espsecure.py

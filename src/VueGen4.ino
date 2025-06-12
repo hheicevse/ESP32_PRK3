@@ -53,6 +53,11 @@ void loop() {
       // 然後PC端要打python -m http.server 8000
       ota_http_func("http://192.168.3.153:8000/firmware.bin");
     }
+    else if (input == "SB_V2"){
+      Serial.println("uart simulation_Secure_Boot V2 start");
+      // 然後PC端要打python -m http.server 8000
+      simulation_Secure_Boot_func("http://192.168.3.152:8000/firmware.bin","http://192.168.3.152:8000/firmware.sig");
+    }
   }
   vTaskDelay(pdMS_TO_TICKS(10));
 }
