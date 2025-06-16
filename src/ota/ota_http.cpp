@@ -6,9 +6,11 @@
 #include <Update.h>
 
 #include <WiFiMulti.h>
+#include <ota/ota_http.h>
+#include <NimBLEDevice.h>
 
 
-
+HTTPClient ota_http;
 /*
 使用 Python 在想要的bin檔,資料夾中啟動 HTTP 伺服器：
 python -m http.server 8000

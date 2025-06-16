@@ -1,6 +1,6 @@
 #ifndef _UART_H_
 #define _UART_H_
-
+#pragma once
 enum{
     TIMER_NOTHING,
     TIMER_RUNNING,
@@ -17,7 +17,11 @@ typedef struct {
     unsigned char tx_len;
 
 } uart1_t;
-uart1_t uart1;
+extern uart1_t uart1;
+
+void uart1_init();
+void uart1_rx_func(void);
+void uart0_rx_func(void);
 
 
 

@@ -1,5 +1,8 @@
 #include <Arduino.h>
+#include <Preferences.h>
 
+
+#include <main.h>
 Preferences prefs;
 
 void saveWiFiCredentials(const String& ssid, const String& password) {

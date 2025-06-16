@@ -1,6 +1,7 @@
 #include <Arduino.h>
-#include <uart.h>
-
+#include <bsp/uart.h>
+#include <main.h>
+uart1_t uart1;
 void IRAM_ATTR uart_isr() {
   digitalWrite(2, HIGH);
   while (Serial1.available()) {

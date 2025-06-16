@@ -8,6 +8,8 @@
 #include "mbedtls/base64.h"
 #include <vector>
 #include <HTTPClient.h>
+#include <NimBLEDevice.h>
+
 const char* PUBLIC_KEY_PEM = R"(-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzCvoCusGHoz7wFAbXfFb
 lbJe2BecAs914Jk2DRS1Yntn4HYCglliNAh3uV7CbalMs6jSEiOVTbd1FnXiakOV

@@ -13,13 +13,13 @@
 #include <HTTPClient.h>
 #include <HTTPUpdate.h>
 #include <WiFiClientSecure.h>
-
+#include <NimBLEDevice.h>
 
 #include <Update.h>
 #include <FS.h>
 // #include <LittleFS.h>
 #include <SPIFFS.h>  // 改成 SPIFFS
-
+#include <ota/ota_http_CA.h>
 String caCertStr;
 WiFiClientSecure client;
 // const char *rootCACertificate = "-----BEGIN CERTIFICATE-----\n"

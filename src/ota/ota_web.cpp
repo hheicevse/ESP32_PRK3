@@ -1,9 +1,17 @@
 // ESP32 OTA Web Updater
 
 //輸入此網址更新  http://192.168.3.175/update
+#include <Arduino.h>
+#include <ota/ota_web.h>
+#include <WiFi.h>
+#include <WebServer.h>
+#include <Update.h>
+#include <NimBLEDevice.h>
+WebServer ota_web(80);
 
 void ota_web_init(void)
 {
+  
   while (WiFi.status() != WL_CONNECTED) {
     delay(500); Serial.print(".");
   }

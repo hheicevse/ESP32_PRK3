@@ -1,5 +1,6 @@
 #include <Arduino.h>
-
+#include <bsp/wifi_ctrl.h>
+#include <WiFi.h>
 
 const char* ssid = "TP-Link_2.4g_CCBD";
 const char* password = "63504149";
