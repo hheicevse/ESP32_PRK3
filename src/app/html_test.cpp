@@ -7,7 +7,8 @@
 #include <SPIFFS.h> 
 #include <Ticker.h>  // 別忘記這個 include
 //輸入此網址 http://192.168.3.165:8080
-
+#include <Update.h>
+#include <NimBLEDevice.h>
 
 AsyncWebServer server(8080);
 AsyncWebSocket ws("/ws");
@@ -16,6 +17,41 @@ float mockCurrent = 0.0;
 
 
 bool ledState = false;
+
+
+
+// OTA 韌體上傳處理器
+void handleFirmwareUpload(AsyncWebServerRequest *request,
+                          String filename, size_t index,
+                          uint8_t *data, size_t len, bool final) {
+  if (!index) {
+    Serial.printf("OTA Start: %s\n", filename.c_str());
+    NimBLEDevice::deinit(false); // 關閉藍牙，避免 Update 失敗
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+      Update.printError(Serial);
+    }
+  }
+
+  if (Update.write(data, len) != len) {
+    Update.printError(Serial);
+  }
+
+  if (final) {
+    if (Update.end(true)) {
+      Serial.printf("OTA Success: %u bytes\n", index + len);
+    } else {
+      Update.printError(Serial);
+    }
+
+    request->send(200, "text/plain",
+                  Update.hasError() ? "FAIL" : "OK, Rebooting...");
+    delay(1000);
+    ESP.restart();
+  }
+}
+
+
+
 
 void notifyClients() {
   mockCurrent = 1.0 + 2.0 * sin(millis() / 1000.0);
@@ -68,6 +104,13 @@ void html_test_init(void){
   server.addHandler(&ws);
   server.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
   
+  server.on(
+    "/upload", HTTP_POST,
+    [](AsyncWebServerRequest *request) {},
+    handleFirmwareUpload
+  );
+
+
   server.begin();
   ticker.attach(1.0, notifyClients);
   

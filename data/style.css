@@ -26,3 +26,25 @@ h1 {
   border-radius: 8px;
   cursor: pointer;
 }
+
+
+#uploadBtn {
+  padding: 10px 20px;
+  font-size: 1em;
+  margin-top: 10px;
+  background-color: #555;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#firmwareInput {
+  margin-top: 10px;
+  color: #00ffcc;
+}
+
+#uploadStatus {
+  margin-top: 10px;
+  color: orange;
+}
