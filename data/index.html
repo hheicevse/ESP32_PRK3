@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>ESP32 Current Monitor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>即時電流顯示</h1>
+  <div id="value">-- A</div>
+  <button id="ledBtn">LED OFF</button>
+
+  <script>
+    const valueDiv = document.getElementById("value");
+    const ledBtn = document.getElementById("ledBtn");
+    let ledState = false;
+
+    const socket = new WebSocket(`ws://${location.host}/ws`);
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      valueDiv.textContent = `${data.current} A`;
+      ledState = data.led;
+      ledBtn.textContent = ledState ? "LED ON" : "LED OFF";
+      ledBtn.style.backgroundColor = ledState ? "#00ffcc" : "#333";
+    };
+
+    ledBtn.onclick = () => {
+      socket.send("toggleLED");
+    };
+  </script>
+</body>
+</html>

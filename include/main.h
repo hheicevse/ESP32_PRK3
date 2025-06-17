@@ -2,6 +2,7 @@
 #define _MAIN_H_
 
 #include <app/ble_ctrl.h>
+#include <app/html_test.h>
 #include <app/nvs.h>
 
 #include <bsp/tmr.h>

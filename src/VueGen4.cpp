@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <main.h>
 
+
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);     //啟動序列通訊鮑率115200
@@ -13,10 +15,10 @@ void setup() {
   uart1_init();
   wifi_init();
   ble_init();
+  html_test_init();
   ota_web_init();
   ota_http_init();
   ota_http_ca_init();
-    
   // rtos
   xTaskCreatePinnedToCore(ota_web_Task, "ota_web_Task", 4096, NULL, 1, NULL, 1);
 
