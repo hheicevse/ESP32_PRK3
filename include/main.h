@@ -7,6 +7,7 @@
 
 #include <bsp/tmr.h>
 #include <bsp/uart.h>
+#include <bsp/watchdog.h>
 #include <bsp/wifi_ctrl.h>
 
 #include <ota/ota_web.h>

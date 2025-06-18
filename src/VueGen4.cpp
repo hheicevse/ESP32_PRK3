@@ -16,11 +16,13 @@ void setup() {
   wifi_init();
   ble_init();
   html_test_init();
-  ota_web_init();
+  ota_web_init();//<-task
   ota_http_init();
   ota_http_ca_init();
-  // rtos
-  xTaskCreatePinnedToCore(ota_web_Task, "ota_web_Task", 4096, NULL, 1, NULL, 1);
+  watchdog_init();//<-task
+
+
+
 
 }
 
@@ -28,6 +30,8 @@ void loop() {
   uart0_rx_func();
   uart1_rx_func();
   ble_notify();//斷線會回到廣播模式
-
+  watchdog_func();
   vTaskDelay(pdMS_TO_TICKS(10));
+
+  
 }

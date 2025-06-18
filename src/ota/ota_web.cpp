@@ -21,6 +21,8 @@ void ota_web_init(void)
 
   ota_web.begin();
   Serial.println("ota_web started");
+    // rtos
+  xTaskCreatePinnedToCore(ota_web_Task, "ota_web_Task", 4096, NULL, 1, NULL, 1);
 }
 
 void ota_web_Task(void *pv) {
