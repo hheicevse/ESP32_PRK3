@@ -5,6 +5,9 @@
 #include <app/html_test.h>
 #include <app/nvs.h>
 
+#include <mspm0/bsl.h>
+#include <mspm0/modbus.h>
+
 #include <bsp/tmr.h>
 #include <bsp/uart.h>
 #include <bsp/watchdog.h>
