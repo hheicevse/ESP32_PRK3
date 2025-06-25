@@ -236,6 +236,32 @@ void exit_bsl_mode() {
 //     ESP_LOGI(TAG, "Firmware sent");
 // }
 
+// 傳送一包資料（支援 1~128 bytes）
+static void bsl_send_packet(uint32_t address, const uint8_t *data, size_t len) {
+    if (len == 0 || len > 128) return;
+    uint8_t packet[140] = {0};
+    packet[0] = BSL_HEADER;
+    packet[1] = len + 5;
+    packet[2] = 0x00;
+    packet[3] = CMD_PROGRAM;
+    packet[4] = (address & 0xFF);
+    packet[5] = (address >> 8) & 0xFF;
+    packet[6] = (address >> 16) & 0xFF;
+    packet[7] = (address >> 24) & 0xFF;
+    memcpy(&packet[8], data, len);
+
+    uint8_t crc_data[5 + len];
+    crc_data[0] = CMD_PROGRAM;
+    memcpy(&crc_data[1], &packet[4], 4 + len);
+    uint32_t crc = bsl_crc32(crc_data, 5 + len);
+    memcpy(&packet[8 + len], &crc, 4);
+
+    uart_write_bytes(UART_PORT, (const char*)packet, 8 + len + 4);
+    uart_wait_tx_done(UART_PORT, pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(500));
+    Serial.printf("address : %08X\n", address);
+}
+
 void bsl_send_firmware_http(const char* url) {
     esp_http_client_config_t config = {
         .url = url,
@@ -246,9 +272,7 @@ void bsl_send_firmware_http(const char* url) {
         ESP_LOGE(TAG, "Failed to open HTTP connection");
         return;
     }
-
     esp_http_client_fetch_headers(client);
-
     char buf[512];
     int r;
     char line[256] = {0};
@@ -261,108 +285,49 @@ void bsl_send_firmware_http(const char* url) {
         for (int i = 0; i < r; i++) {
             char ch = buf[i];
             if (ch == '\n' || ch == '\r') {
-                if (len == 0) continue; // 忽略連續換行
+                if (len == 0) continue;
                 line[len] = '\0';
                 ESP_LOGI(TAG, "LINE: %s", line);
 
                 if (line[0] == '@') {
                     if (data_len > 0) {
-                        uint8_t packet[140] = {0};
-                        packet[0] = BSL_HEADER;
-                        packet[1] = data_len + 5;
-                        packet[2] = 0x00;
-                        packet[3] = CMD_PROGRAM;
-                        packet[4] = (address & 0xFF);
-                        packet[5] = (address >> 8) & 0xFF;
-                        packet[6] = (address >> 16) & 0xFF;
-                        packet[7] = (address >> 24) & 0xFF;
-                        memcpy(&packet[8], data_buf, data_len);
-                        uint8_t crc_data[5 + data_len];
-                        crc_data[0] = CMD_PROGRAM;
-                        memcpy(&crc_data[1], &packet[4], 4 + data_len);
-                        uint32_t crc = bsl_crc32(crc_data, 5 + data_len);
-                        memcpy(&packet[8 + data_len], &crc, 4);
-                        uart_write_bytes(UART_PORT, (const char*)packet, 8 + data_len + 4);
-                        uart_wait_tx_done(UART_PORT, pdMS_TO_TICKS(100));
-                        vTaskDelay(pdMS_TO_TICKS(500));
-                        Serial.printf("address <128: %08X\n", address);
+                        bsl_send_packet(address, data_buf, data_len);
                         address += data_len;
                         data_len = 0;
                     }
                     address = (uint32_t)strtol(line + 1, NULL, 16);
-                    data_len = 0;
                 } else if (line[0] == 'q') {
-                    break;;
+                    break;
                 } else {
                     char *token = strtok(line, " ");
                     while (token != NULL) {
-                        if (strlen(token) == 0) {
-                            token = strtok(NULL, " ");
-                            continue;
-                        }
-                        uint8_t byte = (uint8_t)strtol(token, NULL, 16);
-                        data_buf[data_len++] = byte;
-                        if (data_len == 128) {
-                            uint8_t packet[140];
-                            packet[0] = BSL_HEADER;
-                            packet[1] = 0x85;
-                            packet[2] = 0x00;
-                            packet[3] = CMD_PROGRAM;
-                            packet[4] = (address & 0xFF);
-                            packet[5] = (address >> 8) & 0xFF;
-                            packet[6] = (address >> 16) & 0xFF;
-                            packet[7] = (address >> 24) & 0xFF;
-                            memcpy(&packet[8], data_buf, 128);
-                            uint8_t crc_data[133];
-                            crc_data[0] = CMD_PROGRAM;
-                            memcpy(&crc_data[1], &packet[4], 132);
-                            uint32_t crc = bsl_crc32(crc_data, 133);
-                            memcpy(&packet[136], &crc, 4);
-                            uart_write_bytes(UART_PORT, (const char*)packet, 140);
-                            uart_wait_tx_done(UART_PORT, pdMS_TO_TICKS(100)); 
-                            vTaskDelay(pdMS_TO_TICKS(500));
-                            address += 128;
-                            data_len = 0;
-                            Serial.printf("address : %d\n" , address);
+                        if (strlen(token) > 0) {
+                            uint8_t byte = (uint8_t)strtol(token, NULL, 16);
+                            data_buf[data_len++] = byte;
+                            if (data_len == 128) {
+                                bsl_send_packet(address, data_buf, 128);
+                                address += 128;
+                                data_len = 0;
+                            }
                         }
                         token = strtok(NULL, " ");
                     }
                 }
-                len = 0; // reset line
+                len = 0;
             } else if (len < sizeof(line) - 1) {
                 line[len++] = ch;
             }
         }
     }
-
-
+    
     if (data_len > 0) {
-        // 傳送最後不足128 bytes的資料
-        uint8_t packet[140] = {0};
-        packet[0] = BSL_HEADER;
-        packet[1] = data_len + 5;
-        packet[2] = 0x00;
-        packet[3] = CMD_PROGRAM;
-        packet[4] = (address & 0xFF);
-        packet[5] = (address >> 8) & 0xFF;
-        packet[6] = (address >> 16) & 0xFF;
-        packet[7] = (address >> 24) & 0xFF;
-        memcpy(&packet[8], data_buf, data_len);
-        uint8_t crc_data[5 + data_len];
-        crc_data[0] = CMD_PROGRAM;
-        memcpy(&crc_data[1], &packet[4], 4 + data_len);
-        uint32_t crc = bsl_crc32(crc_data, 5 + data_len);
-        memcpy(&packet[8 + data_len], &crc, 4);
-        uart_write_bytes(UART_PORT, (const char*)packet, 8 + data_len + 4);
-        uart_wait_tx_done(UART_PORT, pdMS_TO_TICKS(100)); 
-        vTaskDelay(pdMS_TO_TICKS(500));
-        Serial.printf("address <128: %d\n" , address);
+        bsl_send_packet(address, data_buf, data_len);
     }
-
     esp_http_client_close(client);
     esp_http_client_cleanup(client);
     ESP_LOGI(TAG, "Firmware sent via HTTP");
 }
+
 
 
 
