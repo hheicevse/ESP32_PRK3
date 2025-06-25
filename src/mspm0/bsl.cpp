@@ -12,7 +12,7 @@
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-
+#include "esp_http_client.h"
 
 #define TAG "BSL"
 
@@ -39,7 +39,7 @@
 #define CMD_START_APP  0x40
 
 // CRC32 計算
-uint32_t bsl_copilot_crc32(const uint8_t *data, size_t len) {
+uint32_t bsl_crc32(const uint8_t *data, size_t len) {
     uint32_t crc = 0xFFFFFFFF;
     for (size_t i = 0; i < len; i++) {
         crc ^= data[i];
@@ -57,10 +57,11 @@ size_t build_simple_packet(uint8_t cmd) {
     out_buf[1] = 0x01;
     out_buf[2] = 0x00;
     out_buf[3] = cmd;
-    uint32_t crc = bsl_copilot_crc32(&cmd, 1);
+    uint32_t crc = bsl_crc32(&cmd, 1);
     memcpy(&out_buf[4], &crc, 4);
 
     uart_write_bytes(UART_PORT, (const char*)out_buf, 8);
+    uart_wait_tx_done(UART_PORT, pdMS_TO_TICKS(100)); 
     vTaskDelay(pdMS_TO_TICKS(500));
     return 8;
 }
@@ -80,7 +81,7 @@ void build_password_packet(uint8_t cmd) {
         out_buf[i + 4] = 0xFF;
     }
 
-    uint32_t crc = bsl_copilot_crc32(&out_buf[3], 33);
+    uint32_t crc = bsl_crc32(&out_buf[3], 33);
     memcpy(&out_buf[36], &crc, 4);  // CRC at offset 36
 
     uart_write_bytes(UART_PORT, (const char*)out_buf, 40);
@@ -88,7 +89,7 @@ void build_password_packet(uint8_t cmd) {
    
 }
 // 初始化 GPIO
-void bsl_copilot_init_gpio() {
+void bsl_init_gpio() {
     gpio_config_t io_conf = {
         .pin_bit_mask = (1ULL << NRST_GPIO) | (1ULL << BSL_GPIO),
         .mode = GPIO_MODE_OUTPUT,
@@ -99,7 +100,7 @@ void bsl_copilot_init_gpio() {
     gpio_config(&io_conf);
 }
 // 初始化 UART
-void bsl_copilot_init_uart() {
+void bsl_init_uart() {
     uart_config_t uart_config = {
         .baud_rate = UART_BAUDRATE,
         .data_bits = UART_DATA_8_BITS,
@@ -114,7 +115,7 @@ void bsl_copilot_init_uart() {
 }
 
 // 初始化 SPIFFS
-void bsl_copilot_init_spiffs() {
+void bsl_init_spiffs() {
     esp_vfs_spiffs_conf_t conf = {
         .base_path = "/spiffs",
         .partition_label = NULL,
@@ -128,7 +129,7 @@ void bsl_copilot_init_spiffs() {
 }
 
 // 控制 BSL 模式進入
-void enter_bsl_copilot_mode() {
+void enter_bsl_mode() {
     gpio_set_level(NRST_GPIO, 0);
     gpio_set_level(BSL_GPIO, 0);
     vTaskDelay(pdMS_TO_TICKS(100));
@@ -140,7 +141,7 @@ void enter_bsl_copilot_mode() {
     gpio_set_level(BSL_GPIO, 0);
 }
 
-void exit_bsl_copilot_mode() {
+void exit_bsl_mode() {
     gpio_set_level(BSL_GPIO, 0);         // 確保離開 BSL 模式
     vTaskDelay(pdMS_TO_TICKS(50));
 
@@ -150,67 +151,193 @@ void exit_bsl_copilot_mode() {
     gpio_set_level(NRST_GPIO, 1);        // 啟動
     vTaskDelay(pdMS_TO_TICKS(100));      // 等待 MCU 啟動
 }
-// 傳送資料到 MSPM0
-void bsl_copilot_send_firmware() {
-    FILE* f = fopen(FIRMWARE_PATH, "r");
-    if (f == NULL) {
-        ESP_LOGE(TAG, "Failed to open firmware file");
+// // 傳送資料到 MSPM0
+// void bsl_send_firmware() {
+//     FILE* f = fopen(FIRMWARE_PATH, "r");
+//     if (f == NULL) {
+//         ESP_LOGE(TAG, "Failed to open firmware file");
+//         return;
+//     }
+
+//     char line[256];
+//     uint32_t address = 0;
+//     uint8_t data_buf[128];
+//     int data_len = 0;
+
+//     while (fgets(line, sizeof(line), f)) {
+//         if (line[0] == '@') {
+//             // 新區塊地址
+//             address = (uint32_t)strtol(line + 1, NULL, 16);
+//             data_len = 0;
+//         } else if (line[0] == 'q') {
+//             break;
+//         } else {
+//             // 資料行
+//             char *token = strtok(line, " ");
+//             while (token != NULL) {
+//                 if (strlen(token) == 0 || token[0] == '\n') {
+//                     token = strtok(NULL, " ");
+//                     continue;
+//                 }
+//                 uint8_t byte = (uint8_t)strtol(token, NULL, 16);
+//                 data_buf[data_len++] = byte;
+//                 if (data_len == 128) {
+//                     // 分段傳送
+//                     // 產生寫入封包
+//                     uint8_t packet[140];
+//                     packet[0] = BSL_HEADER;
+//                     packet[1] = 0x85; // 長度低位
+//                     packet[2] = 0x00; // 長度高位
+//                     packet[3] = CMD_PROGRAM;
+//                     // 地址（小端）
+//                     packet[4] = (address & 0xFF);
+//                     packet[5] = (address >> 8) & 0xFF;
+//                     packet[6] = (address >> 16) & 0xFF;
+//                     packet[7] = (address >> 24) & 0xFF;
+//                     memcpy(&packet[8], data_buf, 128);
+//                     // CRC
+//                     uint8_t crc_data[133];
+//                     crc_data[0] = CMD_PROGRAM;
+//                     memcpy(&crc_data[1], &packet[4], 4 + 128);
+//                     uint32_t crc = bsl_crc32(crc_data, 133);//132
+//                     memcpy(&packet[136], &crc, 4);
+//                     uart_write_bytes(UART_PORT, (const char*)packet, 140);
+//                     uart_wait_tx_done(UART_PORT, pdMS_TO_TICKS(100)); 
+//                     vTaskDelay(pdMS_TO_TICKS(500));
+//                     address += 128;
+//                     data_len = 0;
+//                 }
+//                 token = strtok(NULL, " ");
+//             }
+//         }
+//     }
+//     // 傳送最後不足128 bytes的資料
+//     if (data_len > 0) {
+//         uint8_t packet[140] = {0};
+//         packet[0] = BSL_HEADER;
+//         packet[1] = data_len + 5;
+//         packet[2] = 0x00;
+//         packet[3] = CMD_PROGRAM;
+//         packet[4] = (address & 0xFF);
+//         packet[5] = (address >> 8) & 0xFF;
+//         packet[6] = (address >> 16) & 0xFF;
+//         packet[7] = (address >> 24) & 0xFF;
+//         memcpy(&packet[8], data_buf, data_len);
+//         uint8_t crc_data[5 + data_len];
+//         crc_data[0] = CMD_PROGRAM;
+//         memcpy(&crc_data[1], &packet[4], 4 + data_len);
+//         uint32_t crc = bsl_crc32(crc_data, 5 + data_len);
+//         memcpy(&packet[8 + data_len], &crc, 4);
+//         uart_write_bytes(UART_PORT, (const char*)packet, 8 + data_len + 4);
+//         uart_wait_tx_done(UART_PORT, pdMS_TO_TICKS(100)); 
+//         vTaskDelay(pdMS_TO_TICKS(500));
+//     }
+//     fclose(f);
+//     ESP_LOGI(TAG, "Firmware sent");
+// }
+
+void bsl_send_firmware_http(const char* url) {
+    esp_http_client_config_t config = {
+        .url = url,
+        .timeout_ms = 10000,
+    };
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    if (esp_http_client_open(client, 0) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open HTTP connection");
         return;
     }
 
-    char line[256];
-    uint32_t address = 0;
+    esp_http_client_fetch_headers(client);
+
+    char buf[512];
+    int r;
+    char line[256] = {0};
+    int len = 0;
     uint8_t data_buf[128];
+    uint32_t address = 0;
     int data_len = 0;
 
-    while (fgets(line, sizeof(line), f)) {
-        if (line[0] == '@') {
-            // 新區塊地址
-            address = (uint32_t)strtol(line + 1, NULL, 16);
-            data_len = 0;
-        } else if (line[0] == 'q') {
-            break;
-        } else {
-            // 資料行
-            char *token = strtok(line, " ");
-            while (token != NULL) {
-                if (strlen(token) == 0 || token[0] == '\n') {
-                    token = strtok(NULL, " ");
-                    continue;
-                }
-                uint8_t byte = (uint8_t)strtol(token, NULL, 16);
-                data_buf[data_len++] = byte;
-                if (data_len == 128) {
-                    // 分段傳送
-                    // 產生寫入封包
-                    uint8_t packet[140];
-                    packet[0] = BSL_HEADER;
-                    packet[1] = 0x85; // 長度低位
-                    packet[2] = 0x00; // 長度高位
-                    packet[3] = CMD_PROGRAM;
-                    // 地址（小端）
-                    packet[4] = (address & 0xFF);
-                    packet[5] = (address >> 8) & 0xFF;
-                    packet[6] = (address >> 16) & 0xFF;
-                    packet[7] = (address >> 24) & 0xFF;
-                    memcpy(&packet[8], data_buf, 128);
-                    // CRC
-                    uint8_t crc_data[133];
-                    crc_data[0] = CMD_PROGRAM;
-                    memcpy(&crc_data[1], &packet[4], 4 + 128);
-                    uint32_t crc = bsl_copilot_crc32(crc_data, 133);//132
-                    memcpy(&packet[136], &crc, 4);
-                    uart_write_bytes(UART_PORT, (const char*)packet, 140);
-                    vTaskDelay(pdMS_TO_TICKS(500));
-                    address += 128;
+    while ((r = esp_http_client_read(client, buf, sizeof(buf))) > 0) {
+        for (int i = 0; i < r; i++) {
+            char ch = buf[i];
+            if (ch == '\n' || ch == '\r') {
+                if (len == 0) continue; // 忽略連續換行
+                line[len] = '\0';
+                ESP_LOGI(TAG, "LINE: %s", line);
+
+                if (line[0] == '@') {
+                    if (data_len > 0) {
+                        uint8_t packet[140] = {0};
+                        packet[0] = BSL_HEADER;
+                        packet[1] = data_len + 5;
+                        packet[2] = 0x00;
+                        packet[3] = CMD_PROGRAM;
+                        packet[4] = (address & 0xFF);
+                        packet[5] = (address >> 8) & 0xFF;
+                        packet[6] = (address >> 16) & 0xFF;
+                        packet[7] = (address >> 24) & 0xFF;
+                        memcpy(&packet[8], data_buf, data_len);
+                        uint8_t crc_data[5 + data_len];
+                        crc_data[0] = CMD_PROGRAM;
+                        memcpy(&crc_data[1], &packet[4], 4 + data_len);
+                        uint32_t crc = bsl_crc32(crc_data, 5 + data_len);
+                        memcpy(&packet[8 + data_len], &crc, 4);
+                        uart_write_bytes(UART_PORT, (const char*)packet, 8 + data_len + 4);
+                        uart_wait_tx_done(UART_PORT, pdMS_TO_TICKS(100));
+                        vTaskDelay(pdMS_TO_TICKS(500));
+                        Serial.printf("address <128: %08X\n", address);
+                        address += data_len;
+                        data_len = 0;
+                    }
+                    address = (uint32_t)strtol(line + 1, NULL, 16);
                     data_len = 0;
+                } else if (line[0] == 'q') {
+                    break;;
+                } else {
+                    char *token = strtok(line, " ");
+                    while (token != NULL) {
+                        if (strlen(token) == 0) {
+                            token = strtok(NULL, " ");
+                            continue;
+                        }
+                        uint8_t byte = (uint8_t)strtol(token, NULL, 16);
+                        data_buf[data_len++] = byte;
+                        if (data_len == 128) {
+                            uint8_t packet[140];
+                            packet[0] = BSL_HEADER;
+                            packet[1] = 0x85;
+                            packet[2] = 0x00;
+                            packet[3] = CMD_PROGRAM;
+                            packet[4] = (address & 0xFF);
+                            packet[5] = (address >> 8) & 0xFF;
+                            packet[6] = (address >> 16) & 0xFF;
+                            packet[7] = (address >> 24) & 0xFF;
+                            memcpy(&packet[8], data_buf, 128);
+                            uint8_t crc_data[133];
+                            crc_data[0] = CMD_PROGRAM;
+                            memcpy(&crc_data[1], &packet[4], 132);
+                            uint32_t crc = bsl_crc32(crc_data, 133);
+                            memcpy(&packet[136], &crc, 4);
+                            uart_write_bytes(UART_PORT, (const char*)packet, 140);
+                            uart_wait_tx_done(UART_PORT, pdMS_TO_TICKS(100)); 
+                            vTaskDelay(pdMS_TO_TICKS(500));
+                            address += 128;
+                            data_len = 0;
+                            Serial.printf("address : %d\n" , address);
+                        }
+                        token = strtok(NULL, " ");
+                    }
                 }
-                token = strtok(NULL, " ");
+                len = 0; // reset line
+            } else if (len < sizeof(line) - 1) {
+                line[len++] = ch;
             }
         }
     }
-    // 傳送最後不足128 bytes的資料
+
+
     if (data_len > 0) {
+        // 傳送最後不足128 bytes的資料
         uint8_t packet[140] = {0};
         packet[0] = BSL_HEADER;
         packet[1] = data_len + 5;
@@ -224,31 +351,42 @@ void bsl_copilot_send_firmware() {
         uint8_t crc_data[5 + data_len];
         crc_data[0] = CMD_PROGRAM;
         memcpy(&crc_data[1], &packet[4], 4 + data_len);
-        uint32_t crc = bsl_copilot_crc32(crc_data, 5 + data_len);
+        uint32_t crc = bsl_crc32(crc_data, 5 + data_len);
         memcpy(&packet[8 + data_len], &crc, 4);
         uart_write_bytes(UART_PORT, (const char*)packet, 8 + data_len + 4);
+        uart_wait_tx_done(UART_PORT, pdMS_TO_TICKS(100)); 
         vTaskDelay(pdMS_TO_TICKS(500));
+        Serial.printf("address <128: %d\n" , address);
     }
-    fclose(f);
-    ESP_LOGI(TAG, "Firmware sent");
+
+    esp_http_client_close(client);
+    esp_http_client_cleanup(client);
+    ESP_LOGI(TAG, "Firmware sent via HTTP");
 }
 
 
-void bsl_copilot_func(void)
-{
-    bsl_copilot_init_gpio();
-    bsl_copilot_init_uart();
-    bsl_copilot_init_spiffs();
 
-    enter_bsl_copilot_mode();
+void bsl_func(const char* url)
+{
+    bsl_init_gpio();
+    bsl_init_uart();
+    // bsl_init_spiffs();
+
+    enter_bsl_mode();
 
     build_simple_packet(CMD_CONNECTION);// receive 00
     build_bb_packet(0xBB);// receive 51
     build_simple_packet(CMD_GET_ID);// receive 00 08 19 00 31 00 01 00 01 00 00 00 ..........total 33 bytes
     build_password_packet(CMD_PASSWORD);// receive 00 08 02 00 3B 00 38 02 94 82
     build_simple_packet(CMD_MASS_ERASE);// receive 00 08 02 00 3B 00 38 02 94 82
-    bsl_copilot_send_firmware();// receive 00 08 02 00 3B 00 38 02 94 82
+
+    Serial.printf("\n bsl_start\n");
+    //讀取spiffs的方式
+    // bsl_send_firmware();// receive 00 08 02 00 3B 00 38 02 94 82
+    //讀取url的方式
+    bsl_send_firmware_http(url);// receive 00 08 02 00 3B 00 38 02 94 82
+
     build_simple_packet(CMD_START_APP);// receive 00
-    exit_bsl_copilot_mode();
+    exit_bsl_mode();
     Serial.printf("\n bsl_end\n");
 }

@@ -46,7 +46,7 @@ void uart0_rx_func(void)
     else if (input.startsWith("ota,")) {  
       //uart傳送  ota,http://192.168.3.152:8000/firmware.bin
       // 然後PC端要打python -m http.server 8000
-      String url = input.substring(4);  // 取得逗號後的字串 (從第7個字元開始)
+      String url = input.substring(4);  // 取得逗號後的字串 (從第4個字元開始)
       Serial.println("ota start with URL: " + url);
       ota_http_func(url.c_str());  // 把 URL 當參數傳給 ota_http_CA_func
     }
@@ -67,6 +67,16 @@ void uart0_rx_func(void)
         Serial.println("format failed, please use SB_V2,firmware_url,signature_url");
       }
     }
+
+    else if (input.startsWith("bsl_mspm0,")) {  
+      //uart傳送  bsl_mspm0,http://192.168.3.153:8000/app2.txt
+      // 然後PC端要打python -m http.server 8000
+      String url = input.substring(10);  // 取得逗號後的字串 (從第x個字元開始)
+      Serial.println("bsl_mspm0 start with URL: " + url);
+      bsl_func(url.c_str());  // 把 URL 當參數傳給 ota_http_CA_func
+    }
+
+
 
   }
 }

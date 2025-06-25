@@ -2,6 +2,6 @@
 #define _BSL_COPILOT_H_
 #pragma once
 
-void bsl_copilot_func(void);
+void bsl_func(const char* url);
 
 #endif /* _BSL_COPILOT_H_ */
