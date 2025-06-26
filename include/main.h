@@ -4,6 +4,7 @@
 #include <app/ble_ctrl.h>
 #include <app/html_test.h>
 #include <app/nvs.h>
+#include <app/tcp_test.h>
 
 #include <mspm0/bsl.h>
 #include <mspm0/modbus.h>

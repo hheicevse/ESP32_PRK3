@@ -33,50 +33,78 @@ void uart1_rx_func(void)
 void uart0_rx_func(void)
 {
   if (Serial.available()) {
-      String input = Serial.readStringUntil('\n');  // 讀到換行為止
-      input.trim();  // 去除前後空白或換行
+    String input = Serial.readStringUntil('\n');  // 讀到換行為止
+    input.trim();  // 去除前後空白或換行
 
-    if (input.startsWith("ota_ca,")) {  
-      // uart傳送  ota_ca,https://192.168.3.152:443/firmware.bin
-      // PC端要執行ota_server_ca.py
-      String url = input.substring(7);  // 取得逗號後的字串 (從第7個字元開始)
+    // 通用欄位拆解
+    int firstComma = input.indexOf(',');
+    int secondComma = input.indexOf(',', firstComma + 1);
+    int thirdComma = input.indexOf(',', secondComma + 1);  // 有些指令需要三欄
+
+    String cmd = input.substring(0, firstComma);
+
+    // uart傳送  ota_ca,https://192.168.3.152:443/firmware.bin
+    // PC端要執行 ota_server_ca.py
+    if (cmd == "ota_ca" && firstComma != -1) {
+      String url = input.substring(firstComma + 1);  // URL 是第2欄
       Serial.println("ota_ca start with URL: " + url);
       ota_http_CA_func(url.c_str());  // 把 URL 當參數傳給 ota_http_CA_func
     }
-    else if (input.startsWith("ota,")) {  
-      //uart傳送  ota,http://192.168.3.152:8000/firmware.bin
-      // 然後PC端要打python -m http.server 8000
-      String url = input.substring(4);  // 取得逗號後的字串 (從第4個字元開始)
+
+    // uart傳送  ota,http://192.168.3.152:8000/firmware.bin
+    // 然後 PC 端要打 python -m http.server 8000
+    else if (cmd == "ota" && firstComma != -1) {
+      String url = input.substring(firstComma + 1);  // URL 是第2欄
       Serial.println("ota start with URL: " + url);
-      ota_http_func(url.c_str());  // 把 URL 當參數傳給 ota_http_CA_func
+      ota_http_func(url.c_str());  // 把 URL 當參數傳給 ota_http_func
     }
 
-    else if (input.startsWith("SB_V2,")) {
+    // uart傳送 SB_V2,http://192.168.3.152:8000/firmware.bin,http://192.168.3.152:8000/firmware.sig
+    // 然後 PC 端要打 python -m http.server 8000
+    else if (cmd == "SB_V2" && secondComma != -1) {
+      String bin_url = input.substring(firstComma + 1, secondComma);   // 第2欄
+      String sig_url = input.substring(secondComma + 1);               // 第3欄
       Serial.println("uart simulation_Secure_Boot V2 start");
-      // uart傳送 SB_V2,http://192.168.3.152:8000/firmware.bin,http://192.168.3.152:8000/firmware.sig
-      // 然後PC端要打python -m http.server 8000
-      int firstComma = input.indexOf(',');
-      int secondComma = input.indexOf(',', firstComma + 1);
-      if (firstComma != -1 && secondComma != -1) {
-        String bin_url = input.substring(firstComma + 1, secondComma);
-        String sig_url = input.substring(secondComma + 1);
-        Serial.println("firmware URL: " + bin_url);
-        Serial.println("signature URL: " + sig_url);
-        simulation_Secure_Boot_func(bin_url.c_str(), sig_url.c_str());  // 傳成 const char* 如果你的函式定義是這樣
-      } else {
-        Serial.println("format failed, please use SB_V2,firmware_url,signature_url");
+      Serial.println("firmware URL: " + bin_url);
+      Serial.println("signature URL: " + sig_url);
+      simulation_Secure_Boot_func(bin_url.c_str(), sig_url.c_str());
+    }
+
+    // uart傳送  bsl_mspm0,http://192.168.3.153:8000/app2.txt
+    // 然後 PC 端要打 python -m http.server 8000
+    else if (cmd == "bsl_mspm0" && firstComma != -1) {
+      String url = input.substring(firstComma + 1);  // URL 是第2欄
+      Serial.println("bsl_mspm0 start with URL: " + url);
+      bsl_func(url.c_str());  // 把 URL 當參數傳給 bsl_func
+    }
+
+    // uart傳送  tcp_connect,192.168.3.153,502
+    else if (cmd == "tcp_connect" && secondComma != -1) {
+      String ip = input.substring(firstComma + 1, secondComma);  // 第2欄 IP
+      String port = input.substring(secondComma + 1);            // 第3欄 port
+      tcp_connect(ip.c_str(), port.toInt());
+    }
+    // uart傳送  tcp_disconnect
+    else if (cmd == "tcp_disconnect") {
+      tcp_disconnect();
+    }
+    // uart傳送  tcp_sent
+    else if (cmd == "tcp_sent") {
+      const uint8_t tx[] = {0x01, 0x03, 0x35, 0x00, 0x00, 0x01};  // 你自定封包
+      tcp_send_data(tx, sizeof(tx));
+    }
+    // uart傳送  tcp_read
+    else if (cmd == "tcp_read") {
+      // 改用 non-blocking tcp_available() 檢查
+      int len = tcp_available();
+      if (len > 0) {
+        uint8_t buf[128];
+        int r = tcp_receive_data(buf, len);
       }
     }
 
-    else if (input.startsWith("bsl_mspm0,")) {  
-      //uart傳送  bsl_mspm0,http://192.168.3.153:8000/app2.txt
-      // 然後PC端要打python -m http.server 8000
-      String url = input.substring(10);  // 取得逗號後的字串 (從第x個字元開始)
-      Serial.println("bsl_mspm0 start with URL: " + url);
-      bsl_func(url.c_str());  // 把 URL 當參數傳給 ota_http_CA_func
+    else {
+      Serial.println("Unknown or malformed command: " + input);
     }
-
-
-
   }
 }

@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include "driver/gpio.h"
 #include "driver/uart.h"
-#include "esp_spiffs.h"
 #include "esp_log.h"
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
@@ -26,8 +25,6 @@
 #define UART_RXD     16
 #define UART_BAUDRATE 9600
 
-// SPIFFS 檔案路徑
-#define FIRMWARE_PATH "/spiffs/app1.txt"
 
 // BSL 指令定義
 #define BSL_HEADER     0x80
@@ -114,20 +111,6 @@ void bsl_init_uart() {
     uart_set_pin(UART_PORT, UART_TXD, UART_RXD, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 }
 
-// 初始化 SPIFFS
-void bsl_init_spiffs() {
-    esp_vfs_spiffs_conf_t conf = {
-        .base_path = "/spiffs",
-        .partition_label = NULL,
-        .max_files = 5,
-        .format_if_mount_failed = true
-    };
-    esp_err_t ret = esp_vfs_spiffs_register(&conf);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to mount SPIFFS");
-    }
-}
-
 // 控制 BSL 模式進入
 void enter_bsl_mode() {
     gpio_set_level(NRST_GPIO, 0);
@@ -151,90 +134,6 @@ void exit_bsl_mode() {
     gpio_set_level(NRST_GPIO, 1);        // 啟動
     vTaskDelay(pdMS_TO_TICKS(100));      // 等待 MCU 啟動
 }
-// // 傳送資料到 MSPM0
-// void bsl_send_firmware() {
-//     FILE* f = fopen(FIRMWARE_PATH, "r");
-//     if (f == NULL) {
-//         ESP_LOGE(TAG, "Failed to open firmware file");
-//         return;
-//     }
-
-//     char line[256];
-//     uint32_t address = 0;
-//     uint8_t data_buf[128];
-//     int data_len = 0;
-
-//     while (fgets(line, sizeof(line), f)) {
-//         if (line[0] == '@') {
-//             // 新區塊地址
-//             address = (uint32_t)strtol(line + 1, NULL, 16);
-//             data_len = 0;
-//         } else if (line[0] == 'q') {
-//             break;
-//         } else {
-//             // 資料行
-//             char *token = strtok(line, " ");
-//             while (token != NULL) {
-//                 if (strlen(token) == 0 || token[0] == '\n') {
-//                     token = strtok(NULL, " ");
-//                     continue;
-//                 }
-//                 uint8_t byte = (uint8_t)strtol(token, NULL, 16);
-//                 data_buf[data_len++] = byte;
-//                 if (data_len == 128) {
-//                     // 分段傳送
-//                     // 產生寫入封包
-//                     uint8_t packet[140];
-//                     packet[0] = BSL_HEADER;
-//                     packet[1] = 0x85; // 長度低位
-//                     packet[2] = 0x00; // 長度高位
-//                     packet[3] = CMD_PROGRAM;
-//                     // 地址（小端）
-//                     packet[4] = (address & 0xFF);
-//                     packet[5] = (address >> 8) & 0xFF;
-//                     packet[6] = (address >> 16) & 0xFF;
-//                     packet[7] = (address >> 24) & 0xFF;
-//                     memcpy(&packet[8], data_buf, 128);
-//                     // CRC
-//                     uint8_t crc_data[133];
-//                     crc_data[0] = CMD_PROGRAM;
-//                     memcpy(&crc_data[1], &packet[4], 4 + 128);
-//                     uint32_t crc = bsl_crc32(crc_data, 133);//132
-//                     memcpy(&packet[136], &crc, 4);
-//                     uart_write_bytes(UART_PORT, (const char*)packet, 140);
-//                     uart_wait_tx_done(UART_PORT, pdMS_TO_TICKS(100)); 
-//                     vTaskDelay(pdMS_TO_TICKS(500));
-//                     address += 128;
-//                     data_len = 0;
-//                 }
-//                 token = strtok(NULL, " ");
-//             }
-//         }
-//     }
-//     // 傳送最後不足128 bytes的資料
-//     if (data_len > 0) {
-//         uint8_t packet[140] = {0};
-//         packet[0] = BSL_HEADER;
-//         packet[1] = data_len + 5;
-//         packet[2] = 0x00;
-//         packet[3] = CMD_PROGRAM;
-//         packet[4] = (address & 0xFF);
-//         packet[5] = (address >> 8) & 0xFF;
-//         packet[6] = (address >> 16) & 0xFF;
-//         packet[7] = (address >> 24) & 0xFF;
-//         memcpy(&packet[8], data_buf, data_len);
-//         uint8_t crc_data[5 + data_len];
-//         crc_data[0] = CMD_PROGRAM;
-//         memcpy(&crc_data[1], &packet[4], 4 + data_len);
-//         uint32_t crc = bsl_crc32(crc_data, 5 + data_len);
-//         memcpy(&packet[8 + data_len], &crc, 4);
-//         uart_write_bytes(UART_PORT, (const char*)packet, 8 + data_len + 4);
-//         uart_wait_tx_done(UART_PORT, pdMS_TO_TICKS(100)); 
-//         vTaskDelay(pdMS_TO_TICKS(500));
-//     }
-//     fclose(f);
-//     ESP_LOGI(TAG, "Firmware sent");
-// }
 
 // 傳送一包資料（支援 1~128 bytes）
 static void bsl_send_packet(uint32_t address, const uint8_t *data, size_t len) {
