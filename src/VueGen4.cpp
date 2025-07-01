@@ -1,10 +1,10 @@
 #include <Arduino.h>
 #include <main.h>
 
-
-
+// #include "nvs_flash.h"
+// #include <NimBLEDevice.h>
 void setup() {
-  esp_log_level_set("*", ESP_LOG_INFO);  // 所有 tag 都印到 INFO
+  // esp_log_level_set("*", ESP_LOG_INFO);  // 所有 tag 都印到 INFO
   // put your setup code here, to run once:
   Serial.begin(115200);     //啟動序列通訊鮑率115200
 
@@ -23,7 +23,13 @@ void setup() {
   ota_http_ca_init();
   watchdog_init();//<-task
 
-// bsl_func("bsl_mspm0,http://192.168.3.153:8000/app2.txt");
+  bsd_socket_init();
+
+  // NimBLEDevice::deleteAllBonds(); 
+  // nvs_flash_erase();  // 清除整個 NVS 區塊
+  // nvs_flash_init();
+  // NimBLEDevice::init("MyBLE");
+
 }
 
 void loop() {
@@ -31,6 +37,7 @@ void loop() {
   uart1_rx_func();
   ble_notify();//斷線會回到廣播模式
   watchdog_func();
+  bsd_socket_func();
   vTaskDelay(pdMS_TO_TICKS(10));
 
   

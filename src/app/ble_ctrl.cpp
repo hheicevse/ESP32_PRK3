@@ -9,9 +9,11 @@
 #include <main.h>
 
 #define SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define CHARACTERISTIC_UUID_1 "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define CHARACTERISTIC_UUID_2 "482fcad3-fbe6-49a9-9b91-b291b24d17b2"
+NimBLECharacteristic* pCharacteristic1 = nullptr;
+NimBLECharacteristic* pCharacteristic2 = nullptr;
 
-NimBLECharacteristic* pCharacteristic = nullptr;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
 uint32_t value = 0;
@@ -34,10 +36,14 @@ class ServerCallbacks : public NimBLEServerCallbacks {
 
 /** Handler class for characteristic actions */
 class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
-    void onRead(NimBLECharacteristic* pCharacteristic, NimBLEConnInfo& connInfo) override {
+    void onRead(NimBLECharacteristic* pCharacteristic1, NimBLEConnInfo& connInfo) override {
 
-        std::string value = pCharacteristic->getValue();
+    }
 
+    void onWrite(NimBLECharacteristic* pCharacteristic1, NimBLEConnInfo& connInfo) override {
+        std::string value = pCharacteristic1->getValue();
+        Serial.printf("%s : onWrite(), value: %s\n", pCharacteristic1->getUUID().toString().c_str(), value.c_str());
+        
         //fanyu 測試ble控制wifi連線斷線
         if (value.length() == 1 && value[0] == 0x31) {
           if(WiFi.status() != WL_CONNECTED)//防止已連線又再連線
@@ -71,26 +77,21 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
           Serial.println("PWD: " + password);
         }
         // Serial.printf("%s : onRead(), value: %s\n",
-        //               pCharacteristic->getUUID().toString().c_str(),
-        //               pCharacteristic->getValue().c_str());
-       
-    }
+        //               pCharacteristic1->getUUID().toString().c_str(),
+        //               pCharacteristic1->getValue().c_str());
 
-    void onWrite(NimBLECharacteristic* pCharacteristic, NimBLEConnInfo& connInfo) override {
-        Serial.printf("%s : onWrite(), value: %s\n",
-                      pCharacteristic->getUUID().toString().c_str(),
-                      pCharacteristic->getValue().c_str());
+
     }
 
     /**
      *  The value returned in code is the NimBLE host return code.
      */
-    void onStatus(NimBLECharacteristic* pCharacteristic, int code) override {
+    void onStatus(NimBLECharacteristic* pCharacteristic1, int code) override {
         Serial.printf("Notification/Indication return code: %d, %s\n", code, NimBLEUtils::returnCodeToString(code));
     }
 
     /** Peer subscribed to notifications/indications */
-    void onSubscribe(NimBLECharacteristic* pCharacteristic, NimBLEConnInfo& connInfo, uint16_t subValue) override {
+    void onSubscribe(NimBLECharacteristic* pCharacteristic1, NimBLEConnInfo& connInfo, uint16_t subValue) override {
         std::string str  = "Client ID: ";
         str             += connInfo.getConnHandle();
         str             += " Address: ";
@@ -104,12 +105,30 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
         } else if (subValue == 3) {
             str += " Subscribed to notifications and indications for ";
         }
-        str += std::string(pCharacteristic->getUUID());
+        str += std::string(pCharacteristic1->getUUID());
 
         Serial.printf("%s\n", str.c_str());
     }
-} chrCallbacks;
+} chrCallbacks1;
 
+// 第二個 Characteristic 的 callback 類別
+class CharacteristicCallbacks2 : public NimBLECharacteristicCallbacks {
+    void onRead(NimBLECharacteristic* pCharacteristic, NimBLEConnInfo& connInfo) override {
+        // 處理第二個 characteristic 的讀取邏輯
+        Serial.println("[CHAR 2] onRead");
+    }
+
+    void onWrite(NimBLECharacteristic* pCharacteristic, NimBLEConnInfo& connInfo) override {
+        std::string value = pCharacteristic->getValue();
+        Serial.printf("[CHAR 2] %s : onWrite(), value: %s\n", pCharacteristic->getUUID().toString().c_str(), value.c_str());
+
+        // 你可以依照 value 寫你自己的邏輯
+        if (value == "hello") {
+            Serial.println("[CHAR 2] Received hello");
+        }
+    }
+};
+CharacteristicCallbacks2 chrCallbacks2; // callback 實例
 
 void onAdvComplete(NimBLEAdvertising* pAdvertising) {
   Serial.println("Advertising stopped");
@@ -123,7 +142,12 @@ void onAdvComplete(NimBLEAdvertising* pAdvertising) {
 
 
 void ble_init(void) {
+
   NimBLEDevice::init(ble_ssid);//for ios
+  // NimBLEDevice::setSecurityAuth(false, true, true); /** bonding, MITM, don't need BLE secure connections as we are using passkey pairing */
+  // NimBLEDevice::setSecurityPasskey(666666);
+  // NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY); /** Display only passkey */
+
   NimBLEAdvertisementData advData;
   advData.setName(ble_ssid); //for android,local name
   
@@ -132,10 +156,13 @@ void ble_init(void) {
   pServer->advertiseOnDisconnect(false);
 
   NimBLEService* pService = pServer->createService(SERVICE_UUID);
+ // 第一個 characteristic
+  pCharacteristic1 = pService->createCharacteristic(CHARACTERISTIC_UUID_1,  NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::NOTIFY);
+  pCharacteristic1->setCallbacks(&chrCallbacks1);
 
-  pCharacteristic = pService->createCharacteristic(CHARACTERISTIC_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::NOTIFY);
-
-  pCharacteristic->setCallbacks(&chrCallbacks);
+  // 第二個 characteristic
+  pCharacteristic2 = pService->createCharacteristic(CHARACTERISTIC_UUID_2, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::NOTIFY);
+  pCharacteristic2->setCallbacks(&chrCallbacks2);
 
   pService->start();
 

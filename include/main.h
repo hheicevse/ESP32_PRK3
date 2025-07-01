@@ -2,9 +2,10 @@
 #define _MAIN_H_
 
 #include <app/ble_ctrl.h>
+#include <app/bsd_socket.h>
 #include <app/html_test.h>
 #include <app/nvs.h>
-#include <app/tcp_test.h>
+#include <app/tcp_client.h>
 
 #include <mspm0/bsl.h>
 #include <mspm0/modbus.h>
