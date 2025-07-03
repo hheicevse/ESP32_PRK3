@@ -76,6 +76,19 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
           Serial.println("SSID: " + ssid);
           Serial.println("PWD: " + password);
         }
+        else if (value == "IP?") {
+          // 回傳 IP
+          String ip = "IP=" + WiFi.localIP().toString();
+          Serial.println(ip);
+          pCharacteristic1->setValue(ip.c_str()); // 或儲存起來待讀取
+        }
+        else if (value == "PORT?") {
+          // 回傳 PORT
+          String port =  "PORT=" + String(SERVER_PORT);
+          Serial.println(port);
+          pCharacteristic1->setValue(port.c_str());
+        }
+
         // Serial.printf("%s : onRead(), value: %s\n",
         //               pCharacteristic1->getUUID().toString().c_str(),
         //               pCharacteristic1->getValue().c_str());

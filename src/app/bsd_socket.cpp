@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <string.h>
 
-#define SERVER_PORT 1502
+#include <main.h>
 #define MAX_CLIENTS 5
 #define BUFFER_SIZE 1024
 

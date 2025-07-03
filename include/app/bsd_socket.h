@@ -2,7 +2,7 @@
 #define _BSD_SOCKET_H_
 #pragma once
 
-
+#define SERVER_PORT 1502
 int bsd_socket_init();
 void bsd_socket_func();
 
