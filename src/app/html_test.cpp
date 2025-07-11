@@ -1,86 +1,37 @@
+// html_test.cpp - ESP32 Web Interface with OTA, WebSocket, SPIFFS File Manager
+
 #include <Arduino.h>
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
-#include <LittleFS.h>
-#include <app/html_test.h>
-#include <math.h>
-#include <SPIFFS.h> 
-#include <Ticker.h>  // 別忘記這個 include
-//輸入此網址 http://192.168.3.165:8080
+#include <SPIFFS.h>
+#include <Ticker.h>
 #include <Update.h>
 #include <NimBLEDevice.h>
 
-AsyncWebServer server(8080);
+AsyncWebServer server(8080);  // ✅ 使用原本指定的 8080 Port
 AsyncWebSocket ws("/ws");
-Ticker ticker; // 每秒呼叫 notifyClients()
+Ticker ticker;
 float mockCurrent = 0.0;
-
-
 bool ledState = false;
 
+// 輸入此網址 http://192.168.3.165:8080/
+// 即時電流顯示、LED 控制、OTA 韌體更新、SPIFFS 檔案上傳/刪除整合版
 
-
-// OTA 韌體上傳處理器
-void handleFirmwareUpload(AsyncWebServerRequest *request,
-                          String filename, size_t index,
-                          uint8_t *data, size_t len, bool final) {
-  if (!index) {
-    Serial.printf("OTA Start: %s\n", filename.c_str());
-    NimBLEDevice::deinit(false); // 關閉藍牙，避免 Update 失敗
-    if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
-      Update.printError(Serial);
-    }
-  }
-
-  if (Update.write(data, len) != len) {
-    Update.printError(Serial);
-  }
-
-  if (final) {
-    if (Update.end(true)) {
-      Serial.printf("OTA Success: %u bytes\n", index + len);
-    } else {
-      Update.printError(Serial);
-    }
-
-    request->send(200, "text/plain",
-                  Update.hasError() ? "FAIL" : "OK, Rebooting...");
-    delay(1000);
-    ESP.restart();
-  }
-}
-
-
-
-
+// ===== WebSocket 控制 & 推送資料 =====
 void notifyClients() {
   mockCurrent = 1.0 + 2.0 * sin(millis() / 1000.0);
-  String json = "{\"current\":" + String(mockCurrent, 2) + ",\"led\":" + String(ledState ? "true" : "false") + "}";
+  String json = "{\"current\":" + String(mockCurrent, 2) + ",\"led\":" + (ledState ? "true" : "false") + "}";
   ws.textAll(json);
 }
 
-// #include <ArduinoJson.h>
-// void notifyClients() {
-//   StaticJsonDocument<100> doc;
-//   doc["current"] =  String(mockCurrent, 2); // 你目前測到的電流值
-//   doc["led"] = ledState ? "true" : "false";
-
-//   String jsonStr;
-//   serializeJson(doc, jsonStr);
-//   ws.textAll(jsonStr); // 對所有連線送資料
-// }
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
-    String msg = String((char*)data, len); 
+    String msg = String((char*)data, len);
     if (msg == "toggleLED") {
       ledState = !ledState;
       digitalWrite(2, ledState ? HIGH : LOW);
-      // notifyClients();
-
-      String json = "{\"current\":" + String(mockCurrent, 2) + ",\"led\":" + String(ledState ? "true" : "false") + "}";
-      ws.textAll(json);
-
+      notifyClients();
     }
   }
 }
@@ -88,30 +39,103 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
 void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
              AwsEventType type, void *arg, uint8_t *data, size_t len) {
   if (type == WS_EVT_CONNECT) {
-    Serial.println("WebSocket client connected");
-  } else if (type == WS_EVT_DISCONNECT) {
-    Serial.println("WebSocket client disconnected");
+    notifyClients();
   } else if (type == WS_EVT_DATA) {
     handleWebSocketMessage(arg, data, len);
   }
 }
-void html_test_init(void){
-  if (!SPIFFS.begin(true)) {
-    Serial.println("SPIFFS Mount Failed");
+
+// OTA 韌體上傳處理器
+void handleFirmwareUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+  if (!index) {
+    Serial.printf("OTA Start: %s\n", filename.c_str());
+    NimBLEDevice::deinit(false); // 關閉藍牙，避免 Update 失敗
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+      Update.printError(Serial);
+    }
+  }
+  if (Update.write(data, len) != len) {
+    Update.printError(Serial);
+  }
+  if (final) {
+    if (Update.end(true)) {
+      Serial.printf("OTA Success: %u bytes\n", index + len);
+    } else {
+      Update.printError(Serial);
+    }
+    request->send(200, "text/plain", Update.hasError() ? "FAIL" : "OK, Rebooting...");
+    delay(1000);
+    ESP.restart();
+  }
+}
+
+// 列出 SPIFFS 所有檔案
+void handleListFiles(AsyncWebServerRequest *request) {
+  String json = "[";
+  File root = SPIFFS.open("/");
+  File file = root.openNextFile();
+  bool first = true;
+  while (file) {
+    if (!first) json += ",";
+    json += "\"" + String(file.name()) + "\"";
+    first = false;
+    file = root.openNextFile();
+  }
+  json += "]";
+  request->send(200, "application/json", json);
+}
+
+// 上傳檔案到 SPIFFS
+File uploadFile2;
+void handleFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+  if (!index) {
+    if (!filename.startsWith("/")) filename = "/" + filename;
+    if (SPIFFS.exists(filename)) SPIFFS.remove(filename);
+    uploadFile2 = SPIFFS.open(filename, "w");
+  }
+  if (uploadFile2) uploadFile2.write(data, len);
+  if (final) uploadFile2.close();
+}
+
+// 刪除 SPIFFS 檔案
+void handleDelete(AsyncWebServerRequest *request) {
+  if (!request->hasParam("file", true)) {
+    request->send(400, "text/plain", "Missing file parameter");
     return;
   }
+  String filename = request->getParam("file", true)->value();
+  if (!filename.startsWith("/")) filename = "/" + filename;
+  if (SPIFFS.exists(filename)) {
+    SPIFFS.remove(filename);
+    request->send(200, "text/plain", "Deleted");
+  } else {
+    request->send(404, "text/plain", "File not found");
+  }
+}
+
+// 系統初始化函式 (使用者指定名稱與設定)
+void html_test_init() {
+  if (!SPIFFS.begin(true)) {
+    Serial.println("SPIFFS mount failed");
+    return;
+  }
+
   ws.onEvent(onEvent);
   server.addHandler(&ws);
   server.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
-  
-  server.on(
-    "/upload", HTTP_POST,
-    [](AsyncWebServerRequest *request) {},
-    handleFirmwareUpload
-  );
 
+  server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", "Upload complete");
+  }, handleFirmwareUpload);
+
+  server.on("/uploadFile", HTTP_POST, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", "Upload OK");
+  }, handleFileUpload);
+
+  server.on("/delete", HTTP_POST, handleDelete);
+  server.on("/files", HTTP_GET, handleListFiles);
 
   server.begin();
-  ticker.attach(1.0, notifyClients);
-  
+  ticker.attach(1, notifyClients);
+  Serial.println("Web server started on port 8080");
 }

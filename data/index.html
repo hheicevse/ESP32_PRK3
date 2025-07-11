@@ -1,76 +1,116 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <title>ESP32 Current Monitor</title>
+  <title>ESP32 控制中心</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>即時電流顯示</h1>
-  <div id="value">-- A</div>
-  <button id="ledBtn">LED OFF</button>
+  <h1>ESP32 控制中心</h1>
 
-  <h2>OTA 韌體更新</h2>
-  <input type="file" id="firmwareInput">
-  <button id="uploadBtn">上傳並更新</button>
-  <p id="uploadStatus"></p>
+  <!-- 即時電流顯示與 LED 控制 -->
+  <div class="section">
+    <h2>電流監控</h2>
+    <div id="current">-- A</div>
+    <button id="ledBtn">LED OFF</button>
+  </div>
+
+  <!-- OTA 韌體更新 -->
+  <div class="section">
+    <h2>OTA 韌體更新</h2>
+    <input type="file" id="firmwareInput">
+    <button id="uploadBtn">上傳並更新</button>
+    <p id="uploadStatus"></p>
+  </div>
+
+  <!-- SPIFFS 檔案總管 -->
+  <div class="section">
+    <h2>SPIFFS 檔案總管</h2>
+    <ul id="fileList"></ul>
+
+    <h3>上傳檔案</h3>
+    <input type="file" id="fileInput">
+    <button id="fileUploadBtn">上傳</button>
+    <p id="fileStatus"></p>
+  </div>
 
   <script>
-    const valueDiv = document.getElementById("value");
+    const ws = new WebSocket(`ws://${location.host}/ws`);
+    const current = document.getElementById("current");
     const ledBtn = document.getElementById("ledBtn");
-    let ledState = false;
 
-    const socket = new WebSocket(`ws://${location.host}/ws`);
-
-    socket.onmessage = (event) => {
+    ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      valueDiv.textContent = `${data.current} A`;
-      ledState = data.led;
-      ledBtn.textContent = ledState ? "LED ON" : "LED OFF";
-      ledBtn.style.backgroundColor = ledState ? "#00ffcc" : "#333";
+      current.textContent = `${data.current} A`;
+      ledBtn.textContent = data.led ? "LED ON" : "LED OFF";
+      ledBtn.style.backgroundColor = data.led ? "#00ffcc" : "#444";
     };
 
-    ledBtn.onclick = () => {
-      socket.send("toggleLED");
-    };
+    ledBtn.onclick = () => ws.send("toggleLED");
 
-
-
-
-
-    const uploadBtn = document.getElementById("uploadBtn");
-    const firmwareInput = document.getElementById("firmwareInput");
-    const uploadStatus = document.getElementById("uploadStatus");
-
-    uploadBtn.onclick = async () => {
-      const file = firmwareInput.files[0];
-      if (!file) {
-        alert("請選擇韌體檔案 (.bin)");
-        return;
-      }
+    // OTA 韌體上傳
+    document.getElementById("uploadBtn").onclick = async () => {
+      const file = document.getElementById("firmwareInput").files[0];
+      if (!file) return alert("請選擇 .bin 檔案");
 
       const formData = new FormData();
       formData.append("update", file);
 
-      uploadStatus.textContent = "上傳中...";
+      const res = await fetch("/upload", {
+        method: "POST",
+        body: formData
+      });
 
-      try {
-        const res = await fetch("/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        const text = await res.text();
-        uploadStatus.textContent = text;
-
-      } catch (err) {
-        uploadStatus.textContent = "上傳失敗: " + err;
-      }
+      document.getElementById("uploadStatus").textContent = await res.text();
     };
 
+    // SPIFFS 檔案列表 + 刪除
+    async function refreshFiles() {
+      const list = await fetch("/files").then(res => res.json());
+      const ul = document.getElementById("fileList");
+      ul.innerHTML = "";
 
+      list.forEach(file => {
+        const li = document.createElement("li");
+        const download = document.createElement("a");
+        download.href = file;
+        download.textContent = file;
+        download.download = "";
 
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "刪除";
+        delBtn.onclick = async () => {
+          await fetch("/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `file=${encodeURIComponent(file)}`
+          });
+          refreshFiles();
+        };
 
+        li.appendChild(download);
+        li.appendChild(delBtn);
+        ul.appendChild(li);
+      });
+    }
+    refreshFiles();
+
+    // 上傳檔案
+    document.getElementById("fileUploadBtn").onclick = async () => {
+      const file = document.getElementById("fileInput").files[0];
+      if (!file) return alert("請選擇檔案");
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/uploadFile", {
+        method: "POST",
+        body: formData
+      });
+
+      document.getElementById("fileStatus").textContent = await res.text();
+      refreshFiles();
+    };
   </script>
 </body>
 </html>

@@ -1,50 +1,72 @@
+/* 主體樣式 */
 body {
   font-family: Arial, sans-serif;
   background-color: #121212;
   color: #00ffcc;
+  margin: 0;
+  padding: 30px;
   text-align: center;
-  margin-top: 100px;
 }
 
+/* 標題樣式 */
 h1 {
-  font-size: 2em;
+  font-size: 2.2em;
   margin-bottom: 20px;
 }
 
-#value {
-  font-size: 4em;
-  font-weight: bold;
-  margin-bottom: 40px;
+.section {
+  background-color: #1e1e1e;
+  padding: 20px;
+  margin: 20px auto;
+  max-width: 600px;
+  border-radius: 12px;
+  box-shadow: 0 0 10px #00ffcc33;
 }
 
-#ledBtn {
-  padding: 15px 30px;
-  font-size: 1.2em;
-  background-color: #333;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
+/* LED狀態與電流值 */
+#current {
+  font-size: 3em;
+  margin: 20px 0;
 }
 
-
-#uploadBtn {
+button {
   padding: 10px 20px;
-  font-size: 1em;
-  margin-top: 10px;
-  background-color: #555;
+  background-color: #333;
   color: white;
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  margin: 5px;
 }
 
-#firmwareInput {
-  margin-top: 10px;
+button:hover {
+  background-color: #00ffaa;
+  color: black;
+}
+
+/* 檔案列表 */
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #222;
+  padding: 5px 10px;
+  margin: 4px 0;
+  border-radius: 6px;
+}
+
+a {
   color: #00ffcc;
+  text-decoration: none;
 }
 
-#uploadStatus {
-  margin-top: 10px;
-  color: orange;
+input[type="file"] {
+  color: #00ffcc;
+  background: transparent;
+  border: none;
 }
