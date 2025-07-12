@@ -35,6 +35,7 @@
   <!-- SPIFFS 檔案總管 -->
   <div class="section">
     <h2>SPIFFS 檔案總管</h2>
+    <p id="spiffsUsage">使用量：-- / --</p> 
     <ul id="fileList"></ul>
 
     <h3>上傳檔案</h3>
@@ -85,6 +86,14 @@
         .catch(err => document.getElementById("secureStatus").innerText = "錯誤: " + err);
     }
 
+    // 取得 SPIFFS 使用量
+    async function fetchSPIFFSUsage() {
+      const info = await fetch("/spiffs_usage").then(res => res.json());
+      const kb = n => (n / 1024).toFixed(1) + " KB";
+      document.getElementById("spiffsUsage").textContent =
+        `使用量：${kb(info.used)} / ${kb(info.total)}`;
+    }
+
     // SPIFFS 檔案列表 + 刪除
     async function refreshFiles() {
       const list = await fetch("/files").then(res => res.json());
@@ -106,15 +115,15 @@
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: `file=${encodeURIComponent(file)}`
           });
-          refreshFiles();
+          refreshFiles(); // 再次刷新列表
         };
 
         li.appendChild(download);
         li.appendChild(delBtn);
         ul.appendChild(li);
       });
+      fetchSPIFFSUsage(); // ✅ 每次刷新時一併更新使用量
     }
-    refreshFiles();
 
     // 上傳檔案
     document.getElementById("fileUploadBtn").onclick = async () => {
@@ -130,8 +139,11 @@
       });
 
       document.getElementById("fileStatus").textContent = await res.text();
-      refreshFiles();
+      refreshFiles(); // ✅ 上傳後刷新檔案清單與使用量
     };
+
+    // 初始化
+    refreshFiles(); // ✅ 頁面載入時刷新檔案清單與使用量
   </script>
 </body>
 </html>

@@ -136,7 +136,13 @@ void handleDelete(AsyncWebServerRequest *request) {
     request->send(404, "text/plain", "File not found");
   }
 }
-
+// 傳回 SPIFFS 使用空間資訊
+void handleSPIFFSUsage(AsyncWebServerRequest *request) {
+  size_t total = SPIFFS.totalBytes();
+  size_t used = SPIFFS.usedBytes();
+  String json = "{\"total\":" + String(total) + ",\"used\":" + String(used) + "}";
+  request->send(200, "application/json", json);
+}
 // 系統初始化函式 (使用者指定名稱與設定)
 void html_test_init() {
   if (!SPIFFS.begin(true)) {
@@ -160,7 +166,7 @@ void html_test_init() {
 
   server.on("/delete", HTTP_POST, handleDelete);
   server.on("/files", HTTP_GET, handleListFiles);
-
+  server.on("/spiffs_usage", HTTP_GET, handleSPIFFSUsage);
 
 
 

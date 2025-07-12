@@ -17,18 +17,13 @@ void setup() {
   uart1_init();
   wifi_init();
   ble_init();
-  html_test_init();
+  html_test_init();//<-task
   ota_web_init();//<-task
   ota_http_init();
   ota_http_ca_init();
-  watchdog_init();//<-task
+  // watchdog_init();//<-task
 
   bsd_socket_init();
-
-  // NimBLEDevice::deleteAllBonds(); 
-  // nvs_flash_erase();  // 清除整個 NVS 區塊
-  // nvs_flash_init();
-  // NimBLEDevice::init("MyBLE");
 
 }
 
@@ -36,9 +31,8 @@ void loop() {
   uart0_rx_func();
   uart1_rx_func();
   ble_notify();//斷線會回到廣播模式
-  watchdog_func();
+  // watchdog_func();
   bsd_socket_func();
   vTaskDelay(pdMS_TO_TICKS(10));
 
-  
 }
