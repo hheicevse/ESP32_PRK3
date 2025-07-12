@@ -37,6 +37,7 @@ button {
   border-radius: 6px;
   cursor: pointer;
   margin: 5px;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 button:hover {
@@ -65,8 +66,20 @@ a {
   text-decoration: none;
 }
 
-input[type="file"] {
+input[type="file"],
+input[type="text"] {
   color: #00ffcc;
-  background: transparent;
-  border: none;
+  background: #1c1c1c;
+  border: 1px solid #00ffaa55;
+  border-radius: 6px;
+  padding: 8px;
+  margin: 5px 0;
+  width: 80%;
+}
+
+/* Secure OTA 狀態文字 */
+#secureStatus {
+  margin-top: 10px;
+  font-weight: bold;
+  color: #00ffaa;
 }

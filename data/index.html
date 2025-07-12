@@ -23,6 +23,15 @@
     <p id="uploadStatus"></p>
   </div>
 
+  <!-- 🔒 Secure Boot OTA 韌體更新 -->
+  <div class="section">
+    <h2>🔒 Secure Boot OTA 韌體更新</h2>
+    <input type="text" id="binUrl" placeholder="firmware.bin URL"><br><br>
+    <input type="text" id="sigUrl" placeholder="firmware.sig URL"><br><br>
+    <button onclick="doSecureOTA()">開始 Secure OTA</button>
+    <p id="secureStatus"></p>
+  </div>
+
   <!-- SPIFFS 檔案總管 -->
   <div class="section">
     <h2>SPIFFS 檔案總管</h2>
@@ -63,6 +72,18 @@
 
       document.getElementById("uploadStatus").textContent = await res.text();
     };
+
+    // 🔒 Secure Boot OTA
+    function doSecureOTA() {
+      const bin = document.getElementById("binUrl").value;
+      const sig = document.getElementById("sigUrl").value;
+      if (!bin || !sig) return alert("請填入 bin 與 sig 下載網址");
+
+      fetch(`/secure_ota?bin=${encodeURIComponent(bin)}&sig=${encodeURIComponent(sig)}`)
+        .then(res => res.text())
+        .then(txt => document.getElementById("secureStatus").innerText = txt)
+        .catch(err => document.getElementById("secureStatus").innerText = "錯誤: " + err);
+    }
 
     // SPIFFS 檔案列表 + 刪除
     async function refreshFiles() {

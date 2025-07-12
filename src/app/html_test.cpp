@@ -7,6 +7,7 @@
 #include <Ticker.h>
 #include <Update.h>
 #include <NimBLEDevice.h>
+#include <ota/simulation_Secure_Boot.h>
 
 AsyncWebServer server(8080);  // ✅ 使用原本指定的 8080 Port
 AsyncWebSocket ws("/ws");
@@ -16,7 +17,30 @@ bool ledState = false;
 
 // 輸入此網址 http://192.168.3.165:8080/
 // 即時電流顯示、LED 控制、OTA 韌體更新、SPIFFS 檔案上傳/刪除整合版
+TaskHandle_t otaTaskHandle = NULL;
 
+// 用於儲存參數，簡單示範
+String g_bin_url = "";
+String g_sig_url = "";
+
+void ota_ca_task(void* param) {
+  while (true) {
+    // 等待通知，永遠阻塞直到被喚醒
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+    // 開始 OTA 模擬作業
+    bool result = simulation_Secure_Boot_func(g_bin_url.c_str(), g_sig_url.c_str());
+
+    if (result) {
+      // OTA 成功，重啟
+      // esp_restart();
+    } else {
+      // OTA 失敗，繼續等待下一次通知（回到阻塞）
+      // 你也可以加 log 或其他處理
+      Serial.println("OTA Fail");
+    }
+  }
+}
 // ===== WebSocket 控制 & 推送資料 =====
 void notifyClients() {
   mockCurrent = 1.0 + 2.0 * sin(millis() / 1000.0);
@@ -120,6 +144,8 @@ void html_test_init() {
     return;
   }
 
+  xTaskCreate(ota_ca_task, "ota_task", 8192, NULL, 1, &otaTaskHandle);
+
   ws.onEvent(onEvent);
   server.addHandler(&ws);
   server.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
@@ -134,6 +160,34 @@ void html_test_init() {
 
   server.on("/delete", HTTP_POST, handleDelete);
   server.on("/files", HTTP_GET, handleListFiles);
+
+
+
+
+
+  // 初始化 server 路由
+  server.on("/secure_ota", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!request->hasParam("bin") || !request->hasParam("sig")) {
+      request->send(400, "text/plain", "缺少 bin 或 sig 參數");
+      return;
+    }
+
+    // 儲存參數給 task 使用
+    g_bin_url = request->getParam("bin")->value();
+    g_sig_url = request->getParam("sig")->value();
+
+    // 回應客戶端立即回應，避免阻塞
+    request->send(200, "text/plain", "OTA 啟動中...");
+
+    // 喚醒 task 執行 OTA
+    xTaskNotifyGive(otaTaskHandle);
+  });
+
+
+
+
+
+
 
   server.begin();
   ticker.attach(1, notifyClients);
