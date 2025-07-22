@@ -9,11 +9,13 @@
 
 #include <mspm0/bsl.h>
 #include <mspm0/modbus.h>
+#include <mspm0/mspm0_esp32_comm.h>
 
 #include <bsp/tmr.h>
 #include <bsp/uart.h>
 #include <bsp/watchdog.h>
 #include <bsp/wifi_ctrl.h>
+
 
 #include <ota/ota_web.h>
 #include <ota/ota_http_CA.h>

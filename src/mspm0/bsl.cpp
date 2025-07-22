@@ -13,6 +13,8 @@
 #include "freertos/task.h"
 #include "esp_http_client.h"
 
+#include <main.h>
+
 #define TAG "BSL"
 
 // GPIO 定義
@@ -117,8 +119,8 @@ void enter_bsl_mode() {
     gpio_set_level(BSL_GPIO, 0);
     vTaskDelay(pdMS_TO_TICKS(100));
     gpio_set_level(BSL_GPIO, 1);
-    vTaskDelay(pdMS_TO_TICKS(100));
-    vTaskDelay(pdMS_TO_TICKS(3300));
+
+    vTaskDelay(pdMS_TO_TICKS(2000));
     gpio_set_level(NRST_GPIO, 1);
     vTaskDelay(pdMS_TO_TICKS(100));
     gpio_set_level(BSL_GPIO, 0);
@@ -133,6 +135,23 @@ void exit_bsl_mode() {
 
     gpio_set_level(NRST_GPIO, 1);        // 啟動
     vTaskDelay(pdMS_TO_TICKS(100));      // 等待 MCU 啟動
+}
+static bool bsl_wait_ack(int timeout_ms = 500) {
+    uint8_t rx_buf[64] = {0};
+    int64_t start = esp_timer_get_time(); // us
+    while ((esp_timer_get_time() - start) < timeout_ms * 1000) {
+     
+        int len = uart_read_bytes(UART_PORT, rx_buf, sizeof(rx_buf), pdMS_TO_TICKS(50));
+        if (len > 0) {
+            const uint8_t expected[] = {0x00, 0x08, 0x02, 0x00, 0x3B, 0x00, 0x38, 0x02, 0x94, 0x82};
+            if (len >= sizeof(expected) && memcmp(rx_buf, expected, sizeof(expected)) == 0) {
+                return true;
+            }
+        }
+
+
+    }
+    return false; // timeout
 }
 
 // 傳送一包資料（支援 1~128 bytes）
@@ -157,7 +176,16 @@ static void bsl_send_packet(uint32_t address, const uint8_t *data, size_t len) {
 
     uart_write_bytes(UART_PORT, (const char*)packet, 8 + len + 4);
     uart_wait_tx_done(UART_PORT, pdMS_TO_TICKS(100));
-    vTaskDelay(pdMS_TO_TICKS(500));
+    // vTaskDelay(pdMS_TO_TICKS(500));
+
+    // 等待回應
+    if (!bsl_wait_ack(500)) {
+        // ESP_LOGE(TAG, "No ACK received for address %08X", address);
+        Serial.printf("ack timeout %08X\n", address);
+        // return false;
+    }
+
+
     Serial.printf("address : %08X\n", address);
 }
 
@@ -181,6 +209,7 @@ void bsl_send_firmware_http(const char* url) {
     int data_len = 0;
 
     while ((r = esp_http_client_read(client, buf, sizeof(buf))) > 0) {
+         vTaskDelay(pdMS_TO_TICKS(1));
         for (int i = 0; i < r; i++) {
             char ch = buf[i];
             if (ch == '\n' || ch == '\r') {
@@ -234,7 +263,6 @@ void bsl_func(const char* url)
 {
     bsl_init_gpio();
     bsl_init_uart();
-    // bsl_init_spiffs();
 
     enter_bsl_mode();
 
@@ -245,9 +273,7 @@ void bsl_func(const char* url)
     build_simple_packet(CMD_MASS_ERASE);// receive 00 08 02 00 3B 00 38 02 94 82
 
     Serial.printf("\n bsl_start\n");
-    //讀取spiffs的方式
-    // bsl_send_firmware();// receive 00 08 02 00 3B 00 38 02 94 82
-    //讀取url的方式
+
     bsl_send_firmware_http(url);// receive 00 08 02 00 3B 00 38 02 94 82
 
     build_simple_packet(CMD_START_APP);// receive 00

@@ -3,7 +3,7 @@
 #include <main.h>
 uart1_t uart1;
 void IRAM_ATTR uart_isr() {
-  digitalWrite(2, HIGH);
+  // digitalWrite(2, HIGH);
   while (Serial1.available()) {
     uart1.rx[uart1.rx_count++] = Serial1.read();
     uart1.rx_timeout=0;
@@ -16,14 +16,25 @@ void uart1_init() {
   Serial1.onReceive(uart_isr);
 }
 
+void uart1_deinit() {
+  Serial1.end(); // 關閉 UART1
+  Serial1.onReceive(NULL); // 移除接收回呼
+  memset(uart1.rx, 0, sizeof(uart1.rx));
+  uart1.rx_count=0;
+  uart1.rx_flag=TIMER_NOTHING;
+}
+
 void uart1_rx_func(void)
 {
     if(uart1.rx_flag==TIMER_FINISH)
     {
       uart1.rx_flag=TIMER_NOTHING;
-      if(strcmp((const char*)uart1.rx, "FFF?") == 0){
-          Serial1.println("wdqwdw");
-      }
+      // if(strcmp((const char*)uart1.rx, "FFF?") == 0){
+      //     Serial1.println("wdqwdw");
+          
+      // }
+      Serial.printf("[RX1] %s", (char*)uart1.rx);
+
       memset(uart1.rx, 0, sizeof(uart1.rx));
       uart1.rx_count=0;
     }
@@ -75,7 +86,12 @@ void uart0_rx_func(void)
     else if (cmd == "bsl_mspm0" && firstComma != -1) {
       String url = input.substring(firstComma + 1);  // URL 是第2欄
       Serial.println("bsl_mspm0 start with URL: " + url);
-      bsl_func(url.c_str());  // 把 URL 當參數傳給 bsl_func
+      // bsl_func(url.c_str());  // 把 URL 當參數傳給 bsl_func
+
+      // 寫入共享變數給 task
+      mspm0Comm.bsl_url = url;
+      mspm0Comm.bsl_triggered = true;
+
     }
 
     // uart傳送  tcp_connect,192.168.3.153,502

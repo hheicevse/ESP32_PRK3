@@ -20,6 +20,7 @@ typedef struct {
 extern uart1_t uart1;
 
 void uart1_init();
+void uart1_deinit();
 void uart1_rx_func(void);
 void uart0_rx_func(void);
 
