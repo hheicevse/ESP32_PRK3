@@ -18,20 +18,20 @@ void wifi_init(void)
   
   WiFi.onEvent(GotIP_Handler, ARDUINO_EVENT_WIFI_STA_GOT_IP);
   WiFi.begin(ssid, password);
-  Serial.println("\nConnecting to WiFi Network ..");
+  Serial.println("[WIFI] Connecting to WiFi Network ..");
 }
 
 void ConnectedToAP_Handler(WiFiEvent_t wifi_event, WiFiEventInfo_t wifi_info) {
-  Serial.println("Connected To The WiFi Network");
+  Serial.println("[WIFI] Connected To The WiFi Network");
 }
 
 void DisConnectedToAP_Handler(WiFiEvent_t wifi_event, WiFiEventInfo_t wifi_info) {
-  Serial.println("DisConnected To The WiFi Network");
+  Serial.println("[WIFI] DisConnected To The WiFi Network");
 } 
 
 
 void GotIP_Handler(WiFiEvent_t wifi_event, WiFiEventInfo_t wifi_info) {
-  Serial.print("Local ESP32 IP: ");
+  Serial.print("[WIFI] Local ESP32 IP: ");
   Serial.println(WiFi.localIP());
 }
 

@@ -8,8 +8,10 @@ void ARDUINO_ISR_ATTR onTimer() {
   // Increment the counter and set the time of ISR
   portENTER_CRITICAL_ISR(&timerMux);
 
+  if(uart0.rx_flag==TIMER_RUNNING && uart0.rx_timeout++>=10)
+    uart0.rx_flag=TIMER_FINISH;
   if(uart1.rx_flag==TIMER_RUNNING && uart1.rx_timeout++>=10)
-  uart1.rx_flag=TIMER_FINISH;
+    uart1.rx_flag=TIMER_FINISH;
   portEXIT_CRITICAL_ISR(&timerMux);
 }
 

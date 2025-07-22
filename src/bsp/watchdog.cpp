@@ -9,7 +9,7 @@
 TaskHandle_t watchdogTaskHandle = NULL;
 
 void watchdog_Task(void *parameter) {
-  Serial.println("watchdog_Task start");
+  Serial.println("[WDT] watchdog_Task start");
   // 把自己加入 watchdog 監控
   esp_task_wdt_add(NULL);
   while (true) {
@@ -36,7 +36,7 @@ void watchdog_init() {
     &watchdogTaskHandle,  // task handle
     1                     // 指定在 Core 1 執行
   );
-  Serial.println("Setup watchdog");
+  Serial.println("[WDT] Setup watchdog");
 }
 
 void watchdog_func() {

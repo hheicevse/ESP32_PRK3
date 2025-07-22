@@ -20,10 +20,10 @@ python -m http.server 8000
 
 void ota_http_init() {
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
+  // while (WiFi.status() != WL_CONNECTED) {
+  //   delay(500);
+  //   Serial.print(".");
+  // }
 
  
 }
@@ -73,7 +73,7 @@ void ota_http_func(const char* url) {
     uint8_t buffer[bufferSize];
     size_t totalWritten = 0;
 
-    Serial.printf("OTA Start, size = %d bytes\n", contentLength);
+    Serial.printf("[OTA HTTP] OTA Start, size = %d bytes\n", contentLength);
 
     if (Update.begin(contentLength)) {
       while (ota_http.connected() && totalWritten < contentLength) {
@@ -86,7 +86,7 @@ void ota_http_func(const char* url) {
           if (readBytes > 0) {
             size_t written = Update.write(buffer, readBytes);
             if (written != readBytes) {
-              Serial.println("Update.write failed");
+              Serial.println("[OTA HTTP] Update.write failed");
               Update.end();
               return;
             }
@@ -102,18 +102,18 @@ void ota_http_func(const char* url) {
       }
 
       if (Update.end() && Update.isFinished()) {
-        Serial.println("OTA success. Rebooting...");
+        Serial.println("[OTA HTTP] OTA success. Rebooting...");
         ESP.restart();
       } else {
-        Serial.println("OTA failed. Error: " + String(Update.errorString()));
+        Serial.println("[OTA HTTP] OTA failed. Error: " + String(Update.errorString()));
       }
 
     } else {
-      Serial.println("Not enough space for OTA");
+      Serial.println("[OTA HTTP] Not enough space for OTA");
     }
 
   } else {
-    Serial.printf("HTTP GET failed. Error: %s\n", ota_http.errorToString(httpCode).c_str());
+    Serial.printf("[OTA HTTP] HTTP GET failed. Error: %s\n", ota_http.errorToString(httpCode).c_str());
   }
 
   ota_http.end();

@@ -26,7 +26,7 @@ void postTransmission() {
 
 void printResult(uint8_t result) {
   if (result == node.ku8MBSuccess) {
-    Serial.println("Success");
+    Serial.println("[Modbus] Success");
   } else {
     Serial.print("Error: ");
     Serial.println(result, HEX);
@@ -38,21 +38,21 @@ void modbus_init() {
   MODBUS_SERIAL.begin(115200, SERIAL_8N1, MODBUS_RX_PIN, MODBUS_TX_PIN);
   // 初始化 modbus node, slave ID 1
   node.begin(1, MODBUS_SERIAL);
-  Serial.println("Modbus Master Start");
+  Serial.println("[Modbus] Master Start");
   // 可選 RS485 傳送控制
   // node.preTransmission(preTransmission);
   // node.postTransmission(postTransmission);
 
   uint8_t result;
   // === 0x06: 寫入單一暫存器 ===
-  Serial.println("[0x06] Write 0x1234 to register 0x0001");
+  Serial.println("[Modbus][0x06] Write 0x1234 to register 0x0001");
   result = node.writeSingleRegister(0x0001, 0x1234);
   printResult(result);
 
   delay(1000);
 
   // === 0x10: 寫入多個暫存器 ===
-  Serial.println("[0x10] Write 3 registers starting from 0x0010");
+  Serial.println("[Modbus][0x10] Write 3 registers starting from 0x0010");
 
   node.clearTransmitBuffer();  // 清除之前的資料
   node.setTransmitBuffer(0, 0x1111);  // 寫入 index=0 的值
@@ -67,11 +67,11 @@ void modbus_init() {
   delay(1000);
 
   // === 0x03: 讀取暫存器 ===
-  Serial.println("[0x03] Read 5 registers starting from 0x0010");
+  Serial.println("[Modbus][0x03] Read 5 registers starting from 0x0010");
   result = node.readHoldingRegisters(0x0010, 5);
   if (result == node.ku8MBSuccess) {
     for (uint8_t i = 0; i < 5; i++) {
-      Serial.print("Reg ");
+      Serial.print("[Modbus] Reg ");
       Serial.print(0x0010 + i, HEX);
       Serial.print(": ");
       Serial.println(node.getResponseBuffer(i), HEX);

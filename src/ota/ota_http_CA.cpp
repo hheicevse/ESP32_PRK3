@@ -79,7 +79,7 @@ void ota_http_ca_init(){
     // 初始化檔案系統
   // if (!LittleFS.begin()) {
   if (!SPIFFS.begin()) {
-    Serial.println("LittleFS init failed!");
+    Serial.println("[OTA CA]LittleFS init failed!");
     return;
   }
 
@@ -87,7 +87,7 @@ void ota_http_ca_init(){
   // File caFile = LittleFS.open("/myCA.pem", "r");
   File caFile = SPIFFS.open("/myCA.pem", "r");  // 改成 SPIFFS
   if (!caFile) {
-    Serial.println("Failed to open CA cert file");
+    Serial.println("[OTA CA]Failed to open CA cert file");
     return;
   }
 
@@ -107,19 +107,19 @@ void ota_http_ca_init(){
 
 
 void update_started() {
-  Serial.println("CALLBACK:  HTTP update process started");
+  Serial.println("[OTA CA]CALLBACK:  HTTP update process started");
 }
 
 void update_finished() {
-  Serial.println("CALLBACK:  HTTP update process finished");
+  Serial.println("[OTA CA]CALLBACK:  HTTP update process finished");
 }
 
 void update_progress(int cur, int total) {
-  Serial.printf("CALLBACK:  HTTP update process at %d of %d bytes...\n", cur, total);
+  Serial.printf("[OTA CA]CALLBACK:  HTTP update process at %d of %d bytes...\n", cur, total);
 }
 
 void update_error(int err) {
-  Serial.printf("CALLBACK:  HTTP update fatal error code %d\n", err);
+  Serial.printf("[OTA CA]CALLBACK:  HTTP update fatal error code %d\n", err);
 }
 
 bool ota_http_CA_func(const char* url) {
@@ -142,13 +142,13 @@ bool ota_http_CA_func(const char* url) {
 
       switch (ret) {
       case HTTP_UPDATE_FAILED:
-        Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+        Serial.printf("[OTA CA]HTTP_UPDATE_FAILED Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
         break;
       case HTTP_UPDATE_NO_UPDATES:
-        Serial.println("HTTP_UPDATE_NO_UPDATES");
+        Serial.println("[OTA CA]HTTP_UPDATE_NO_UPDATES");
         break;
       case HTTP_UPDATE_OK:
-        Serial.println("HTTP_UPDATE_OK");
+        Serial.println("[OTA CA]HTTP_UPDATE_OK");
         is_ok = true;
         vTaskDelay(pdMS_TO_TICKS(1000));
         ESP.restart();

@@ -16,8 +16,6 @@
 #define MAX_CLIENTS 5
 #define BUFFER_SIZE 1024
 
-// const char* ssid = "你的SSID";
-// const char* password = "你的密碼";
 
 int server_fd = -1;
 int client_fds[MAX_CLIENTS] = {-1, -1, -1, -1, -1};
@@ -28,7 +26,7 @@ void send_json(int fd, JsonDocument& doc) {
   String out;
   serializeJson(doc, out);
   send(fd, out.c_str(), out.length(), 0);
-  Serial.print("Sent: ");
+  Serial.print("[JSON] Sent: ");
   Serial.println(out);
 }
 
@@ -36,13 +34,13 @@ void handle_json(int client_fd, const char* data) {
   StaticJsonDocument<512> doc;
   DeserializationError error = deserializeJson(doc, data);
   if (error) {
-    Serial.print("JSON parse error: ");
+    Serial.print("[JSON] parse error: ");
     Serial.println(error.f_str());
     return;
   }
 
   if (!doc.is<JsonArray>()) {
-    Serial.println("Expected JSON array.");
+    Serial.println("[JSON] Expected JSON array.");
     return;
   }
 
@@ -63,11 +61,11 @@ void handle_json(int client_fd, const char* data) {
     } else if (strcmp(cmd, "set_level") == 0) {
       float l1 = obj["level1"] | 0.0;
       float l2 = obj["level2"] | 0.0;
-      Serial.printf("Level1: %.2f, Level2: %.2f\n", l1, l2);
+      Serial.printf("[JSON] Level1: %.2f, Level2: %.2f\n", l1, l2);
     } else if (strcmp(cmd, "set_ssid_pwd") == 0) {
       const char* s = obj["ssid"] | "";
       const char* p = obj["password"] | "";
-      Serial.printf("SSID: %s, PASSWORD: %s\n", s, p);
+      Serial.printf("[JSON] SSID: %s, PASSWORD: %s\n", s, p);
     }
   }
 
@@ -81,14 +79,14 @@ void handle_json(int client_fd, const char* data) {
 int bsd_socket_init() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.print(".");
+    // Serial.print(".");
   }
-  Serial.println("\nWiFi connected.");
+  Serial.print("[TCP] WiFi connected. IP: ");
   Serial.println(WiFi.localIP());
 
   server_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (server_fd < 0) {
-    Serial.println("socket() failed");
+    Serial.println("[TCP] socket() failed");
     return 0;
   }
 
@@ -99,12 +97,12 @@ int bsd_socket_init() {
   server_addr.sin_addr.s_addr = INADDR_ANY;
 
   if (bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-    Serial.println("bind() failed");
+    Serial.println("[TCP] bind() failed");
     return 0;
   }
 
   listen(server_fd, MAX_CLIENTS);
-  Serial.printf("TCP server listening on port %d...\n", SERVER_PORT);
+  Serial.printf("[TCP] TCP server listening on port %d...\n", SERVER_PORT);
   return 1;
 }
 
@@ -131,7 +129,7 @@ void bsd_socket_func() {
     socklen_t addr_len = sizeof(client_addr);
     int new_fd = accept(server_fd, (struct sockaddr*)&client_addr, &addr_len);
     if (new_fd >= 0) {
-      Serial.print("New client: ");
+      Serial.print("[TCP] New client: ");
       Serial.println(inet_ntoa(client_addr.sin_addr));
 
       bool added = false;
@@ -145,7 +143,7 @@ void bsd_socket_func() {
       }
 
       if (!added) {
-        Serial.println("Max clients reached. Connection refused.");
+        Serial.println("[TCP] Max clients reached. Connection refused.");
         close(new_fd);
       }
     }
@@ -159,7 +157,7 @@ void bsd_socket_func() {
     char buffer[BUFFER_SIZE] = {0};
     int len = recv(fd, buffer, sizeof(buffer) - 1, 0);
     if (len <= 0) {
-      Serial.printf("Client %d disconnected\n", fd);
+      Serial.printf("[TCP] Client %d disconnected\n", fd);
       close(fd);
       client_fds[i] = -1;
       client_buffers[i].clear();
@@ -188,7 +186,7 @@ void bsd_socket_func() {
       if (jsonEnd != std::string::npos) {
         std::string oneJson = buf.substr(0, jsonEnd);
         buf.erase(0, jsonEnd);  // 移除已處理部分
-        Serial.printf("Client %d parsed JSON: %s\n", fd, oneJson.c_str());
+        Serial.printf("[JSON] Client %d parsed JSON: %s\n", fd, oneJson.c_str());
         handle_json(fd, oneJson.c_str());
       } else {
         // 未完成，等待下次補齊

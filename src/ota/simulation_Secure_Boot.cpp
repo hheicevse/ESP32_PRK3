@@ -64,7 +64,7 @@ bool streamFirmwareAndHash(WiFiClient& stream, size_t totalLength, uint8_t* out_
   mbedtls_md_starts(&ctx);
 
   if (!Update.begin(totalLength)) {
-    Serial.println("Not enough space for OTA");
+    Serial.println("[SIG] Not enough space for OTA");
     return false;
   }
 
@@ -141,10 +141,10 @@ if (httpCode == HTTP_CODE_OK) {
 
   if (streamFirmwareAndHash(bin_stream, bin_len, firmware_hash)) {
     if (verifySignature(firmware_hash, sig_data.data(), sig_data.size())) {
-      Serial.println("Signature OK! Rebooting...");
+      Serial.println("[SIG] Signature OK! Rebooting...");
       ESP.restart();
     } else {
-      Serial.println("Signature verification failed");
+      Serial.println("[SIG] Signature verification failed");
     }
   }
 }

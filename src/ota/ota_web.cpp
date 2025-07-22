@@ -124,7 +124,7 @@ void handleDelete() {
       }
       if (SPIFFS.exists(filename)) {
         SPIFFS.remove(filename);
-        Serial.println("Deleted: " + filename);
+        Serial.println("[OTA WEB] Deleted: " + filename);
       }
     }
   }
@@ -147,7 +147,7 @@ void handleUpdateUpload() {
     }
   } else if (upload.status == UPLOAD_FILE_END) {
     if (Update.end(true)) {
-      Serial.printf("Update Success: %u bytes\n", upload.totalSize);
+      Serial.printf("[OTA WEB] Update Success: %u bytes\n", upload.totalSize);
     } else {
       Update.printError(Serial);
     }
@@ -179,14 +179,22 @@ void ota_web_Task(void *pv) {
 void ota_web_init(void)
 {
   if (!SPIFFS.begin(true)) {
-    Serial.println("SPIFFS Mount Failed");
+    Serial.println("[OTA WEB] SPIFFS Mount Failed");
     return;
   }
-
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500); Serial.print(".");
+  const int max_attempts = 4;  // 最多等 4 次，每次 500ms 共 2 秒
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < max_attempts) {
+    delay(500);
+    // Serial.print(".");
+    attempts++;
   }
-  Serial.println("\nWiFi connected, IP: " + WiFi.localIP().toString());
+
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("[OTA WEB] WiFi not connected. Abort OTA Web init.");
+    return;
+  }
+  Serial.println("[OTA WEB] WiFi connected, IP: " + WiFi.localIP().toString());
 
   ota_web.on("/", handleRoot);
   ota_web.on("/download", HTTP_GET, handleDownload);
@@ -196,7 +204,7 @@ void ota_web_init(void)
   ota_web.on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
 
   ota_web.begin();
-  Serial.println("ota_web started");
+  Serial.println("[OTA WEB]ota_web started");
 
   xTaskCreatePinnedToCore(ota_web_Task, "ota_web_Task", 4096, NULL, 1, NULL, 1);
 }

@@ -181,12 +181,12 @@ static void bsl_send_packet(uint32_t address, const uint8_t *data, size_t len) {
     // 等待回應
     if (!bsl_wait_ack(500)) {
         // ESP_LOGE(TAG, "No ACK received for address %08X", address);
-        Serial.printf("ack timeout %08X\n", address);
+        Serial.printf("[BSL] ack timeout %08X\n", address);
         // return false;
     }
 
 
-    Serial.printf("address : %08X\n", address);
+    Serial.printf("[BSL] address : %08X\n", address);
 }
 
 void bsl_send_firmware_http(const char* url) {
@@ -196,7 +196,7 @@ void bsl_send_firmware_http(const char* url) {
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     if (esp_http_client_open(client, 0) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to open HTTP connection");
+        Serial.println("[BSL] Failed to open HTTP connection");
         return;
     }
     esp_http_client_fetch_headers(client);
@@ -215,7 +215,7 @@ void bsl_send_firmware_http(const char* url) {
             if (ch == '\n' || ch == '\r') {
                 if (len == 0) continue;
                 line[len] = '\0';
-                ESP_LOGI(TAG, "LINE: %s", line);
+                // Serial.printf("[BSL] LINE: %s", line);
 
                 if (line[0] == '@') {
                     if (data_len > 0) {
@@ -253,7 +253,7 @@ void bsl_send_firmware_http(const char* url) {
     }
     esp_http_client_close(client);
     esp_http_client_cleanup(client);
-    ESP_LOGI(TAG, "Firmware sent via HTTP");
+    Serial.println("[BSL] Firmware sent via HTTP");
 }
 
 
@@ -272,11 +272,12 @@ void bsl_func(const char* url)
     build_password_packet(CMD_PASSWORD);// receive 00 08 02 00 3B 00 38 02 94 82
     build_simple_packet(CMD_MASS_ERASE);// receive 00 08 02 00 3B 00 38 02 94 82
 
-    Serial.printf("\n bsl_start\n");
+    Serial.println("[BSL] bsl_start");
 
     bsl_send_firmware_http(url);// receive 00 08 02 00 3B 00 38 02 94 82
 
     build_simple_packet(CMD_START_APP);// receive 00
     exit_bsl_mode();
-    Serial.printf("\n bsl_end\n");
+
+    Serial.println("[BSL] bsl_end");
 }

@@ -42,13 +42,13 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
 
     void onWrite(NimBLECharacteristic* pCharacteristic1, NimBLEConnInfo& connInfo) override {
         std::string value = pCharacteristic1->getValue();
-        Serial.printf("%s : onWrite(), value: %s\n", pCharacteristic1->getUUID().toString().c_str(), value.c_str());
+        Serial.printf("[BLE] %s : onWrite(), value: %s\n", pCharacteristic1->getUUID().toString().c_str(), value.c_str());
         
         //fanyu 測試ble控制wifi連線斷線
         if (value.length() == 1 && value[0] == 0x31) {
           if(WiFi.status() != WL_CONNECTED)//防止已連線又再連線
           {
-            Serial.printf("start fanyu \n");
+            Serial.printf("[BLE] start fanyu \n");
             WiFi.begin("TP-Link_2.4g_CCBD", "63504149");
             ota_web_init();
             ota_http_init();
@@ -57,7 +57,7 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
 
         }
         else if (value.length() == 1 && value[0] == 0x32) {
-          Serial.printf("stop fanyu \n");
+          Serial.printf("[BLE] stop fanyu \n");
           ota_web.stop();
           ota_http.end();
           WiFi.disconnect();
@@ -73,18 +73,18 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
           // 讀取帳密
           String ssid, password;
           loadWiFiCredentials(ssid, password);
-          Serial.println("SSID: " + ssid);
-          Serial.println("PWD: " + password);
+          Serial.println("[BLE] SSID: " + ssid);
+          Serial.println("[BLE] PWD: " + password);
         }
         else if (value == "IP?") {
           // 回傳 IP
-          String ip = "IP=" + WiFi.localIP().toString();
+          String ip = "[BLE]IP=" + WiFi.localIP().toString();
           Serial.println(ip);
           pCharacteristic1->setValue(ip.c_str()); // 或儲存起來待讀取
         }
         else if (value == "PORT?") {
           // 回傳 PORT
-          String port =  "PORT=" + String(SERVER_PORT);
+          String port =  "[BLE] PORT=" + String(SERVER_PORT);
           Serial.println(port);
           pCharacteristic1->setValue(port.c_str());
         }
@@ -100,12 +100,12 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
      *  The value returned in code is the NimBLE host return code.
      */
     void onStatus(NimBLECharacteristic* pCharacteristic1, int code) override {
-        Serial.printf("Notification/Indication return code: %d, %s\n", code, NimBLEUtils::returnCodeToString(code));
+        Serial.printf("[BLE] Notification/Indication return code: %d, %s\n", code, NimBLEUtils::returnCodeToString(code));
     }
 
     /** Peer subscribed to notifications/indications */
     void onSubscribe(NimBLECharacteristic* pCharacteristic1, NimBLEConnInfo& connInfo, uint16_t subValue) override {
-        std::string str  = "Client ID: ";
+        std::string str  = "[BLE] Client ID: ";
         str             += connInfo.getConnHandle();
         str             += " Address: ";
         str             += connInfo.getAddress().toString();
@@ -128,23 +128,23 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
 class CharacteristicCallbacks2 : public NimBLECharacteristicCallbacks {
     void onRead(NimBLECharacteristic* pCharacteristic, NimBLEConnInfo& connInfo) override {
         // 處理第二個 characteristic 的讀取邏輯
-        Serial.println("[CHAR 2] onRead");
+        Serial.println("[BLE][CHAR 2] onRead");
     }
 
     void onWrite(NimBLECharacteristic* pCharacteristic, NimBLEConnInfo& connInfo) override {
         std::string value = pCharacteristic->getValue();
-        Serial.printf("[CHAR 2] %s : onWrite(), value: %s\n", pCharacteristic->getUUID().toString().c_str(), value.c_str());
+        Serial.printf("[BLE][CHAR 2] %s : onWrite(), value: %s\n", pCharacteristic->getUUID().toString().c_str(), value.c_str());
 
         // 你可以依照 value 寫你自己的邏輯
         if (value == "hello") {
-            Serial.println("[CHAR 2] Received hello");
+            Serial.println("[BLE][CHAR 2] Received hello");
         }
     }
 };
 CharacteristicCallbacks2 chrCallbacks2; // callback 實例
 
 void onAdvComplete(NimBLEAdvertising* pAdvertising) {
-  Serial.println("Advertising stopped");
+  Serial.println("[BLE] Advertising stopped");
   if (deviceConnected) {
     return;
   }
@@ -187,7 +187,7 @@ void ble_init(void) {
   pAdvertising->setAdvertisementData(advData);
 
   pAdvertising->start();
-  Serial.println("Waiting a client connection to notify...");
+  Serial.println("[BLE] Waiting a client connection to notify...");
 }
 
 
@@ -201,7 +201,7 @@ void ble_notify(void) {
     }
     // advertise with whitelist for 5 seconds
     pAdvertising->start(5 * 1000);
-    Serial.println("start advertising");
+    Serial.println("[BLE] start advertising");
     oldDeviceConnected = deviceConnected;
   }
 

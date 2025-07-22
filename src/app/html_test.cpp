@@ -37,7 +37,7 @@ void ota_ca_task(void* param) {
     } else {
       // OTA 失敗，繼續等待下一次通知（回到阻塞）
       // 你也可以加 log 或其他處理
-      Serial.println("OTA Fail");
+      Serial.println("[HTML] OTA Fail");
     }
   }
 }
@@ -72,7 +72,7 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
 // OTA 韌體上傳處理器
 void handleFirmwareUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
   if (!index) {
-    Serial.printf("OTA Start: %s\n", filename.c_str());
+    Serial.printf("[HTML] OTA Start: %s\n", filename.c_str());
     NimBLEDevice::deinit(false); // 關閉藍牙，避免 Update 失敗
     if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
       Update.printError(Serial);
@@ -83,7 +83,7 @@ void handleFirmwareUpload(AsyncWebServerRequest *request, String filename, size_
   }
   if (final) {
     if (Update.end(true)) {
-      Serial.printf("OTA Success: %u bytes\n", index + len);
+      Serial.printf("[HTML] OTA Success: %u bytes\n", index + len);
     } else {
       Update.printError(Serial);
     }
@@ -146,7 +146,7 @@ void handleSPIFFSUsage(AsyncWebServerRequest *request) {
 // 系統初始化函式 (使用者指定名稱與設定)
 void html_test_init() {
   if (!SPIFFS.begin(true)) {
-    Serial.println("SPIFFS mount failed");
+    Serial.println("[HTML] SPIFFS mount failed");
     return;
   }
 
@@ -197,5 +197,5 @@ void html_test_init() {
 
   server.begin();
   ticker.attach(1, notifyClients);
-  Serial.println("Web server started on port 8080");
+  Serial.println("[HTML] Web server started on port 8080");
 }
