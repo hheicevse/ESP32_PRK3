@@ -7,7 +7,10 @@ mspm0Comm_t mspm0Comm;
 
 void mspm0_read(const char * rx)
 {
-
+    // if(strcmp((const char*)uart1.rx, "FFF?") == 0){
+    //     Serial1.println("wdqwdw");
+        
+    // }
     Serial.printf("[RX1] %s", (char*)uart1.rx);
 }
 
@@ -16,7 +19,8 @@ void mspm0_polling(void *param) {
     if (mspm0Comm.bsl_triggered) {
       uart1_deinit();
       bsl_func(mspm0Comm.bsl_url.c_str());  // 假設這是阻塞函式
-      mspm0Comm.bsl_triggered = false;  // 清除旗標      
+      mspm0Comm.bsl_triggered = false;  // 清除旗標 
+      mspm0Comm.bsl_url = "";     
       uart1_deinit();
       uart1_init();
     } 
@@ -37,7 +41,7 @@ void mspm0_polling(void *param) {
 
 void mspm0_esp32_comm_init() {
     uart1_init();    
-    mspm0Comm.bsl_triggered = false;
-    mspm0Comm.bsl_url = "";
+    // mspm0Comm.bsl_triggered = false;
+    // mspm0Comm.bsl_url = "";
     xTaskCreatePinnedToCore(mspm0_polling,"mspm0_polling",4096, NULL,2,NULL,APP_CPU_NUM);
 }

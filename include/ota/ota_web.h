@@ -5,6 +5,7 @@
 
 #include <WebServer.h>
 
+void ota_web_deinit(void);
 void ota_web_init(void);
 void ota_web_Task(void *pv);
 void handleRoot();

@@ -3,6 +3,7 @@
 
 #include <app/ble_ctrl.h>
 #include <app/bsd_socket.h>
+#include <app/debug.h>
 #include <app/html_test.h>
 #include <app/nvs.h>
 #include <app/tcp_client.h>

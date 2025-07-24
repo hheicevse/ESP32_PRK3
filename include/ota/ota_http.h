@@ -3,6 +3,7 @@
 
 #pragma once
 
+void ota_http_deinit();
 void ota_http_init();
 void ota_http_func(const char* url);
 

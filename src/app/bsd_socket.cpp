@@ -75,6 +75,10 @@ void handle_json(int client_fd, const char* data) {
 }
 
 
+int bsd_socket_deinit() {
+  close(server_fd);
+  return 1;
+}
 
 int bsd_socket_init() {
   while (WiFi.status() != WL_CONNECTED) {

@@ -50,16 +50,12 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
           {
             Serial.printf("[BLE] start fanyu \n");
             WiFi.begin("TP-Link_2.4g_CCBD", "63504149");
-            ota_web_init();
-            ota_http_init();
             digitalWrite(2, HIGH);
           }
 
         }
         else if (value.length() == 1 && value[0] == 0x32) {
           Serial.printf("[BLE] stop fanyu \n");
-          ota_web.stop();
-          ota_http.end();
           WiFi.disconnect();
           digitalWrite(2, LOW);
         }

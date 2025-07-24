@@ -176,6 +176,10 @@ void ota_web_Task(void *pv) {
   }
 }
 
+void ota_web_deinit(void)
+{
+  ota_web.stop();
+}
 void ota_web_init(void)
 {
   if (!SPIFFS.begin(true)) {

@@ -18,6 +18,9 @@ python -m http.server 8000
 
 // const char* firmware_url = "http://192.168.3.153:8000/firmware.bin";//先用本地的bin就好
 
+void ota_http_deinit() {
+  ota_http.end();
+}
 void ota_http_init() {
 
   // while (WiFi.status() != WL_CONNECTED) {
