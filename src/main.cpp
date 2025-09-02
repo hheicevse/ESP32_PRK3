@@ -2,15 +2,10 @@
 #include <main.h>
 
 void setup() {
-  // Serial.begin(115200);     //啟動序列通訊鮑率115200
   uart0_init();
-  // RX 腳上拉
-  // pinMode(16, INPUT_PULLUP);
-  // pinMode(2, OUTPUT);//選告GPIO 2作為輸出（黃色LED）
-
+  pinMode(2, OUTPUT);//選告GPIO 2作為輸出（黃色LED）
   // modbus_init();
   tmr_init();
-
   wifi_init();
   ble_init();
   html_test_init();//<-task
@@ -25,14 +20,14 @@ void wifi_check_and_manage_services() {
   if (wifiNowConnected && !wifiWasConnected) {
     Serial.println("[WiFi] services started");
     // ✅ 僅在剛連上網路時執行
-    bsd_socket_init();     // TCP Server
+    tcp_sta_init();     // TCP Server
     ota_web_init(); //<-task       // OTA Web server
     ota_http_init();
   } 
   else if (!wifiNowConnected && wifiWasConnected) {
     Serial.println("[WiFi] services stopped");
     // ✅ 僅在剛斷線時執行
-    bsd_socket_deinit();
+    tcp_sta_deinit();
     ota_web_deinit();
     ota_http_deinit();
   }
@@ -44,7 +39,8 @@ void loop() {
   uart1_rx_func();//for mspm0
   ble_notify();//斷線會回到廣播模式
   watchdog_func();
-  bsd_socket_func();
+  tcp_sta_func();
+  tcp_ap_func();
   wifi_check_and_manage_services();
   vTaskDelay(pdMS_TO_TICKS(10));
 

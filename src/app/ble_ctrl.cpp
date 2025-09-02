@@ -49,7 +49,10 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
           if(WiFi.status() != WL_CONNECTED)//防止已連線又再連線
           {
             Serial.printf("[BLE] start fanyu \n");
-            WiFi.begin("TP-Link_2.4g_CCBD", "63504149");
+            // WiFi.begin("TP-Link_2.4g_CCBD", "63504149");
+            String ssid, password;
+            loadWiFiCredentials(ssid, password);
+            WiFi.begin(ssid, password);
             digitalWrite(2, HIGH);
           }
 
@@ -60,10 +63,10 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
           digitalWrite(2, LOW);
         }
         else if (value.length() == 1 && value[0] == 0x33) {
-          saveWiFiCredentials("DCDStyut", "q3ef");
+          saveWiFiCredentials("DCDStyut", "q3ef");//故意存錯的
         }
         else if (value.length() == 1 && value[0] == 0x34) {
-          saveWiFiCredentials("TP-Lig_CCBD", "6149");
+          saveWiFiCredentials("TP-Link_2.4g_CCBD", "63504149");
         }
         else if (value.length() == 1 && value[0] == 0x35) {
           // 讀取帳密
@@ -80,7 +83,7 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
         }
         else if (value == "PORT?") {
           // 回傳 PORT
-          String port =  "[BLE] PORT=" + String(SERVER_PORT);
+          String port =  "[BLE] PORT=" + String(SERVER_PORT_STA);
           Serial.println(port);
           pCharacteristic1->setValue(port.c_str());
         }

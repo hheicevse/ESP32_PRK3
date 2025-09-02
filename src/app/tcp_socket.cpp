@@ -17,8 +17,10 @@
 #define BUFFER_SIZE 1024
 
 
-int server_fd = -1;
+int server_fd_sta = -1;
+int server_fd_ap = -1;
 int client_fds[MAX_CLIENTS] = {-1, -1, -1, -1, -1};
+int client_fds_ap[MAX_CLIENTS] = {-1, -1, -1, -1, -1};
 std::string client_buffers[MAX_CLIENTS];  // 每個 client 一個接收緩衝區
 int mockvoltage = 0;
 
@@ -75,46 +77,47 @@ void handle_json(int client_fd, const char* data) {
 }
 
 
-int bsd_socket_deinit() {
-  close(server_fd);
+int tcp_sta_deinit() {
+  close(server_fd_sta);
   return 1;
 }
 
-int bsd_socket_init() {
+
+int tcp_sta_init() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     // Serial.print(".");
   }
-  Serial.print("[TCP] WiFi connected. IP: ");
+  Serial.print("[TCP STA] WiFi connected. IP: ");
   Serial.println(WiFi.localIP());
 
-  server_fd = socket(AF_INET, SOCK_STREAM, 0);
-  if (server_fd < 0) {
-    Serial.println("[TCP] socket() failed");
+  server_fd_sta = socket(AF_INET, SOCK_STREAM, 0);
+  if (server_fd_sta < 0) {
+    Serial.println("[TCP STA] socket() failed");
     return 0;
   }
 
   struct sockaddr_in server_addr;
   memset(&server_addr, 0, sizeof(server_addr));
   server_addr.sin_family = AF_INET;
-  server_addr.sin_port = htons(SERVER_PORT);
+  server_addr.sin_port = htons(SERVER_PORT_STA);
   server_addr.sin_addr.s_addr = INADDR_ANY;
 
-  if (bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-    Serial.println("[TCP] bind() failed");
+  if (bind(server_fd_sta, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+    Serial.println("[TCP STA] bind() failed");
     return 0;
   }
 
-  listen(server_fd, MAX_CLIENTS);
-  Serial.printf("[TCP] TCP server listening on port %d...\n", SERVER_PORT);
+  listen(server_fd_sta, MAX_CLIENTS);
+  Serial.printf("[TCP STA] TCP server listening on port %d...\n", SERVER_PORT_STA);
   return 1;
 }
 
-void bsd_socket_func() {
+void tcp_sta_func() {
   fd_set readfds;
   FD_ZERO(&readfds);
-  FD_SET(server_fd, &readfds);
-  int max_fd = server_fd;
+  FD_SET(server_fd_sta, &readfds);
+  int max_fd = server_fd_sta;
 
   for (int i = 0; i < MAX_CLIENTS; i++) {
     if (client_fds[i] != -1) {
@@ -128,12 +131,12 @@ void bsd_socket_func() {
   if (activity < 0) return;
 
   // 接受新連線
-  if (FD_ISSET(server_fd, &readfds)) {
+  if (FD_ISSET(server_fd_sta, &readfds)) {
     struct sockaddr_in client_addr;
     socklen_t addr_len = sizeof(client_addr);
-    int new_fd = accept(server_fd, (struct sockaddr*)&client_addr, &addr_len);
+    int new_fd = accept(server_fd_sta, (struct sockaddr*)&client_addr, &addr_len);
     if (new_fd >= 0) {
-      Serial.print("[TCP] New client: ");
+      Serial.print("[TCP STA] New client: ");
       Serial.println(inet_ntoa(client_addr.sin_addr));
 
       bool added = false;
@@ -147,7 +150,7 @@ void bsd_socket_func() {
       }
 
       if (!added) {
-        Serial.println("[TCP] Max clients reached. Connection refused.");
+        Serial.println("[TCP STA] Max clients reached. Connection refused.");
         close(new_fd);
       }
     }
@@ -161,9 +164,126 @@ void bsd_socket_func() {
     char buffer[BUFFER_SIZE] = {0};
     int len = recv(fd, buffer, sizeof(buffer) - 1, 0);
     if (len <= 0) {
-      Serial.printf("[TCP] Client %d disconnected\n", fd);
+      Serial.printf("[TCP STA] Client %d disconnected\n", fd);
       close(fd);
       client_fds[i] = -1;
+      client_buffers[i].clear();
+      continue;
+    }
+
+    buffer[len] = '\0';
+    client_buffers[i] += buffer;  // append 到 client 專屬 buffer
+
+    // 嘗試解析完整 JSON 陣列（用中括號對應）
+    std::string& buf = client_buffers[i];
+    while (true) {
+      int open = 0;
+      size_t jsonEnd = std::string::npos;
+
+      for (size_t j = 0; j < buf.length(); j++) {
+        if (buf[j] == '[') open++;
+        else if (buf[j] == ']') open--;
+
+        if (open == 0 && buf[j] == ']') {
+          jsonEnd = j + 1;  // 拿到結尾位置
+          break;
+        }
+      }
+
+      if (jsonEnd != std::string::npos) {
+        std::string oneJson = buf.substr(0, jsonEnd);
+        buf.erase(0, jsonEnd);  // 移除已處理部分
+        Serial.printf("[JSON] Client %d parsed JSON: %s\n", fd, oneJson.c_str());
+        handle_json(fd, oneJson.c_str());
+      } else {
+        // 未完成，等待下次補齊
+        break;
+      }
+    }
+  }
+}
+
+
+
+int tcp_ap_init(uint32_t ip, uint16_t port) {
+  server_fd_ap = socket(AF_INET, SOCK_STREAM, 0);
+  if (server_fd_ap < 0) {
+    Serial.println("[TCP AP] socket() failed");
+    return -1;
+  }
+
+  struct sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons(port);
+  addr.sin_addr.s_addr = ip;  // 指定要綁的 IP
+
+  if (bind(server_fd_ap, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+    Serial.println("[TCP AP] bind() failed");
+    close(server_fd_ap);
+    return -1;
+  }
+
+  listen(server_fd_ap, 5);
+  Serial.printf("[TCP AP] Server listening on %s:%d\n", 
+                ip == INADDR_ANY ? "0.0.0.0" : inet_ntoa(addr.sin_addr), port);
+  return server_fd_ap;
+}
+
+void tcp_ap_func() {
+  fd_set readfds;
+  FD_ZERO(&readfds);
+  FD_SET(server_fd_ap, &readfds);
+  int max_fd = server_fd_ap;
+
+  for (int i = 0; i < MAX_CLIENTS; i++) {
+    if (client_fds_ap[i] != -1) {
+      FD_SET(client_fds_ap[i], &readfds);
+      if (client_fds_ap[i] > max_fd) max_fd = client_fds_ap[i];
+    }
+  }
+
+  struct timeval timeout = {0, 100000};  // 100ms timeout
+  int activity = select(max_fd + 1, &readfds, NULL, NULL, &timeout);
+  if (activity < 0) return;
+
+  // 接受新連線
+  if (FD_ISSET(server_fd_ap, &readfds)) {
+    struct sockaddr_in client_addr;
+    socklen_t addr_len = sizeof(client_addr);
+    int new_fd = accept(server_fd_ap, (struct sockaddr*)&client_addr, &addr_len);
+    if (new_fd >= 0) {
+      Serial.print("[TCP AP] New client: ");
+      Serial.println(inet_ntoa(client_addr.sin_addr));
+
+      bool added = false;
+      for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (client_fds_ap[i] == -1) {
+          client_fds_ap[i] = new_fd;
+          client_buffers[i].clear();  // 初始化 buffer
+          added = true;
+          break;
+        }
+      }
+
+      if (!added) {
+        Serial.println("[TCP AP] Max clients reached. Connection refused.");
+        close(new_fd);
+      }
+    }
+  }
+
+  // 處理已連線 client
+  for (int i = 0; i < MAX_CLIENTS; i++) {
+    int fd = client_fds_ap[i];
+    if (fd == -1 || !FD_ISSET(fd, &readfds)) continue;
+
+    char buffer[BUFFER_SIZE] = {0};
+    int len = recv(fd, buffer, sizeof(buffer) - 1, 0);
+    if (len <= 0) {
+      Serial.printf("[TCP AP] Client %d disconnected\n", fd);
+      close(fd);
+      client_fds_ap[i] = -1;
       client_buffers[i].clear();
       continue;
     }

@@ -1,13 +1,14 @@
 #include <Arduino.h>
 #include <bsp/wifi_ctrl.h>
 #include <WiFi.h>
+#include <main.h>
 
 const char* ssid = "TP-Link_2.4g_CCBD";
 const char* password = "63504149";
 
 void wifi_init(void)
 {
-  
+  //STA
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();//斷線（初始化的意思）
 
@@ -18,20 +19,29 @@ void wifi_init(void)
   
   WiFi.onEvent(GotIP_Handler, ARDUINO_EVENT_WIFI_STA_GOT_IP);
   WiFi.begin(ssid, password);
-  Serial.println("[WIFI] Connecting to WiFi Network ..");
+  Serial.println("[WIFI STA] Connecting to WiFi Network ..");
+
+
+  // AP
+  WiFi.softAP("ESP32_AP", "12345678");
+  IPAddress ap_ip = WiFi.softAPIP();
+  Serial.printf("[WIFI AP] IP: %s\n", ap_ip.toString().c_str());
+  // 開 AP server (502)
+  tcp_ap_init((uint32_t)ap_ip, SERVER_PORT_AP);
+
 }
 
 void ConnectedToAP_Handler(WiFiEvent_t wifi_event, WiFiEventInfo_t wifi_info) {
-  Serial.println("[WIFI] Connected To The WiFi Network");
+  Serial.println("[WIFI STA] Connected To The WiFi Network");
 }
 
 void DisConnectedToAP_Handler(WiFiEvent_t wifi_event, WiFiEventInfo_t wifi_info) {
-  Serial.println("[WIFI] DisConnected To The WiFi Network");
+  Serial.println("[WIFI STA] DisConnected To The WiFi Network");
 } 
 
 
 void GotIP_Handler(WiFiEvent_t wifi_event, WiFiEventInfo_t wifi_info) {
-  Serial.print("[WIFI] Local ESP32 IP: ");
+  Serial.print("[WIFI STA] Local ESP32 IP: ");
   Serial.println(WiFi.localIP());
 }
 
