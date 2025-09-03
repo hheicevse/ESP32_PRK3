@@ -3,7 +3,10 @@
 
 void setup() {
   uart0_init();
+    // RX 腳上拉
+  // pinMode(5, INPUT_PULLUP);
   pinMode(2, OUTPUT);//選告GPIO 2作為輸出（黃色LED）
+  digitalWrite(2, HIGH);
   // modbus_init();
   tmr_init();
   wifi_init();

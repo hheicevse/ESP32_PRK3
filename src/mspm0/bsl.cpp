@@ -18,13 +18,13 @@
 #define TAG "BSL"
 
 // GPIO 定義
-#define NRST_GPIO    GPIO_NUM_18
-#define BSL_GPIO     GPIO_NUM_19
+#define NRST_GPIO    GPIO_NUM_23//GPIO_NUM_18
+#define BSL_GPIO     GPIO_NUM_12//GPIO_NUM_19
 
 // UART 定義
 #define UART_PORT    UART_NUM_1
-#define UART_TXD     17
-#define UART_RXD     16
+#define UART_TXD     18
+#define UART_RXD     5
 #define UART_BAUDRATE 9600
 
 

@@ -69,6 +69,36 @@ void handle_json(int client_fd, const char* data) {
       const char* p = obj["password"] | "";
       Serial.printf("[JSON] SSID: %s, PASSWORD: %s\n", s, p);
     }
+
+
+    // [{"command":"ota","file":"http://192.168.3.180:8000/firmware.bin"}]
+    else if (strcmp(cmd, "ota") == 0) {
+      const char* fileUrl = obj["file"] | "";
+      if (strlen(fileUrl) > 0) {
+        String url = String(fileUrl);
+        Serial.println("[JSON] ota start with URL: " + url);
+        ota_http_func(url.c_str());  // 把 URL 當參數傳給 ota_http_func
+      } else {
+        Serial.println("[JSON] ota request, but no file URL provided");
+      }
+    }
+    
+    // [{"command":"bsl_mspm0","file":"http://192.168.3.180:8000/Dan_TI_3507.txt"}]
+    else if (strcmp(cmd, "bsl_mspm0") == 0) {
+      const char* fileUrl = obj["file"] | "";
+      if (strlen(fileUrl) > 0) {
+        String url = String(fileUrl);
+        Serial.println("[JSON] bsl_mspm0 start with URL: " + url);
+
+        // 寫入共享變數給 task
+        mspm0Comm.bsl_url = url;
+        mspm0Comm.bsl_triggered = true;
+      } else {
+        Serial.println("[JSON] bsl_mspm0 request, but no file URL provided");
+      }
+    }
+
+
   }
 
   if (!response.isNull()) {

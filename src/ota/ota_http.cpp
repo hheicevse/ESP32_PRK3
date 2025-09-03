@@ -76,6 +76,8 @@ void ota_http_func(const char* url) {
     uint8_t buffer[bufferSize];
     size_t totalWritten = 0;
 
+    int lastPercent = -1;  // 紀錄上一次的進度，避免重複輸出
+
     Serial.printf("[OTA HTTP] OTA Start, size = %d bytes\n", contentLength);
 
     if (Update.begin(contentLength)) {
@@ -94,6 +96,16 @@ void ota_http_func(const char* url) {
               return;
             }
             totalWritten += written;
+
+            // ✅ 計算並顯示進度
+            int percent = (int)((totalWritten * 100) / contentLength);
+            if (percent != lastPercent) {
+              Serial.printf("[OTA HTTP] Progress: %d%% (%d/%d bytes)\n",
+                            percent, (int)totalWritten, contentLength);
+              lastPercent = percent;
+            }
+
+
           }
         }
 

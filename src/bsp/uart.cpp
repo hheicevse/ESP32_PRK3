@@ -14,7 +14,8 @@ void IRAM_ATTR uart1_isr() {
 }
 
 void uart1_init() {
-  Serial1.begin(115200, SERIAL_8N1, 16, 17); // UART1 用 GPIO16, 17
+  // Serial1.begin(115200, SERIAL_8N1, 16, 17); // UART1 用 GPIO16, 17
+  Serial1.begin(115200, SERIAL_8N1, 5, 18); // RX=5, TX=18
   Serial1.onReceive(uart1_isr);
 }
 

@@ -31,8 +31,16 @@ bin檔燒錄
 python -m pip install esptool
 
 燒錄bin,改COM PORT就好
+[esp32dev]
 python -m esptool --chip esp32 --port COM22 --baud 921600 write_flash -z 0x1000 bootloader.bin 0x8000 partitions.bin 0x10000 firmware.bin
+python -m esptool --chip esp32 --port COM3 --baud 115200 write-flash -z 0x1000 bootloader.bin 0x8000 partitions.bin 0xe000 C:\Users\fanyu\.platformio\packages\framework-arduinoespressif32\tools\partitions\boot_app0.bin 0x10000 firmware.bin
+
+[esp32s3]
+python -m esptool --chip esp32s3 --port COM11 --baud 460800 --before default_reset --after hard_reset write_flash -z --flash_mode dio --flash_freq 80m --flash_size 8MB 0x0000 bootloader.bin 0x8000 partitions.bin 0xe000 C:\Users\fanyu\.platformio\packages\framework-arduinoespressif32\tools\partitions\boot_app0.bin 0x10000 firmware.bin
 
 
-/////////////////////////////////////////min_spiffs.csv路徑//////////////////////////////////////////////////////////////
+PlatformIO 會依據你 platformio.ini 的設定（board = esp32dev）自動帶入 上傳配置。
+pio run -t upload -v
+
+  /////////////////////////////////////////min_spiffs.csv路徑//////////////////////////////////////////////////////////////
 C:\Users\<你的使用者>\.platformio\packages\framework-arduinoespressif32\tools\partitions\
