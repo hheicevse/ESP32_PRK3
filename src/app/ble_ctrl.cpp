@@ -4,7 +4,7 @@
 #include <NimBLEDevice.h>
 
 #include <WiFiMulti.h>
-
+#include <ArduinoJson.h>
 
 #include <main.h>
 
@@ -41,52 +41,71 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
     }
 
     void onWrite(NimBLECharacteristic* pCharacteristic1, NimBLEConnInfo& connInfo) override {
-        std::string value = pCharacteristic1->getValue();
-        Serial.printf("[BLE] %s : onWrite(), value: %s\n", pCharacteristic1->getUUID().toString().c_str(), value.c_str());
-        
-        //fanyu 測試ble控制wifi連線斷線
-        if (value.length() == 1 && value[0] == 0x31) {
-          if(WiFi.status() != WL_CONNECTED)//防止已連線又再連線
-          {
-            Serial.printf("[BLE] start fanyu \n");
-            // WiFi.begin("TP-Link_2.4g_CCBD", "63504149");
-            String ssid, password;
-            loadWiFiCredentials(ssid, password);
-            WiFi.begin(ssid, password);
-            digitalWrite(2, HIGH);
-          }
+            std::string rxValue = pCharacteristic1->getValue();
+            if (rxValue.length() == 0) return;
 
-        }
-        else if (value.length() == 1 && value[0] == 0x32) {
-          Serial.printf("[BLE] stop fanyu \n");
-          WiFi.disconnect();
-          digitalWrite(2, LOW);
-        }
-        else if (value.length() == 1 && value[0] == 0x33) {
-          saveWiFiCredentials("DCDStyut", "q3ef");//故意存錯的
-        }
-        else if (value.length() == 1 && value[0] == 0x34) {
-          saveWiFiCredentials("TP-Link_2.4g_CCBD", "63504149");
-        }
-        else if (value.length() == 1 && value[0] == 0x35) {
-          // 讀取帳密
-          String ssid, password;
-          loadWiFiCredentials(ssid, password);
-          Serial.println("[BLE] SSID: " + ssid);
-          Serial.println("[BLE] PWD: " + password);
-        }
-        else if (value == "IP?") {
-          // 回傳 IP
-          String ip = "[BLE]IP=" + WiFi.localIP().toString();
-          Serial.println(ip);
-          pCharacteristic1->setValue(ip.c_str()); // 或儲存起來待讀取
-        }
-        else if (value == "PORT?") {
-          // 回傳 PORT
-          String port =  "[BLE] PORT=" + String(SERVER_PORT_STA);
-          Serial.println(port);
-          pCharacteristic1->setValue(port.c_str());
-        }
+            Serial.printf("[BLE] RX: %s\n", rxValue.c_str());
+
+            // 解析 JSON 陣列
+            DynamicJsonDocument doc(512);
+            DeserializationError error = deserializeJson(doc, rxValue);
+            if (error) {
+                Serial.printf("[BLE] JSON Parse Error: %s\n", error.c_str());
+                return;
+            }
+
+            JsonArray arr = doc.as<JsonArray>();
+            DynamicJsonDocument response(512);
+            JsonArray resArr = response.to<JsonArray>();
+
+            for (JsonObject obj : arr) {
+                const char* command = obj["command"];
+                if (!command) continue;
+
+                JsonObject res = resArr.createNestedObject();
+                res["command"] = command;
+
+                if (strcmp(command, "set_wifi") == 0) {
+                    const char* ssid = obj["ssid"] | "";
+                    const char* pwd  = obj["pwd"]  | "";
+                    saveWiFiCredentials(ssid, pwd);
+                    res["status"] = "ok";
+
+                } else if (strcmp(command, "get_wifi") == 0) {
+                    String ssid, pwd;
+                    loadWiFiCredentials(ssid, pwd);
+                    res["ssid"] = ssid;
+                    res["pwd"]  = pwd;
+
+                } else if (strcmp(command, "set_wifi_connect") == 0) {
+                    String ssid, pwd;
+                    loadWiFiCredentials(ssid, pwd);
+                    if (WiFi.status() != WL_CONNECTED) {
+                        WiFi.begin(ssid.c_str(), pwd.c_str());
+                    }
+                    res["status"] = "ok";
+
+                } else if (strcmp(command, "set_wifi_disconnect") == 0) {
+                    WiFi.disconnect();
+                    res["status"] = "ok";
+
+                } else if (strcmp(command, "get_wifi_status") == 0) {
+                    res["status"] = (WiFi.status() == WL_CONNECTED) ? "connected" : "disconnected";
+
+                } else if (strcmp(command, "get_wifi_ip") == 0) {
+                    res["ip"]   = WiFi.localIP().toString();
+                    res["port"] = String(SERVER_PORT_STA);
+                }
+            }
+
+            // 序列化回傳 JSON
+            String jsonOut;
+            serializeJson(resArr, jsonOut);
+            Serial.printf("[BLE] TX: %s\n", jsonOut.c_str());
+
+            pCharacteristic1->setValue(jsonOut.c_str());
+            pCharacteristic1->notify(); // 立即推送給 Client
+        
 
         // Serial.printf("%s : onRead(), value: %s\n",
         //               pCharacteristic1->getUUID().toString().c_str(),
