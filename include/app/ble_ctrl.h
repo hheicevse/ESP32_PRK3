@@ -3,6 +3,7 @@
 #pragma once
 
 void ble_init(void);
+void ble_deinit(void);
 void ble_notify(void) ;
 
 #endif /* _BLE_CTRL_H_ */

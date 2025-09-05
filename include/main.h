@@ -1,6 +1,7 @@
 #ifndef _MAIN_H_
 #define _MAIN_H_
 
+#include <app/sn_info.h>
 #include <app/ble_ctrl.h>
 #include <app/tcp_socket.h>
 #include <app/debug.h>

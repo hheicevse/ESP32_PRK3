@@ -9,6 +9,10 @@
 #include <NimBLEDevice.h>
 #include <ota/simulation_Secure_Boot.h>
 
+#include <app/sn_info.h>
+#include <app/ble_ctrl.h>
+
+
 AsyncWebServer server(8080);  // ✅ 使用原本指定的 8080 Port
 AsyncWebSocket ws("/ws");
 Ticker ticker;
@@ -168,6 +172,25 @@ void html_test_init() {
   server.on("/files", HTTP_GET, handleListFiles);
   server.on("/spiffs_usage", HTTP_GET, handleSPIFFSUsage);
 
+  // 新增取得 ESP 虛列號、chip_id、mac API
+  server.on("/sn", HTTP_GET, [](AsyncWebServerRequest *request) {
+    SNInfo info = getSNInfo();
+    String json = String("{\"sn\":\"") + info.sn +
+      "\",\"chip_id\":\"" + info.chip_id +
+      "\",\"mac\":\"" + info.mac + "\"}";
+    request->send(200, "application/json", json);
+  });
+
+  // BLE 控制 API
+  server.on("/ble_enable", HTTP_GET, [](AsyncWebServerRequest *request) {
+    ble_init();
+    request->send(200, "text/plain", "BLE enabled");
+  });
+
+  server.on("/ble_disable", HTTP_GET, [](AsyncWebServerRequest *request) {
+    ble_deinit();
+    request->send(200, "text/plain", "BLE disabled");
+  });
 
 
 

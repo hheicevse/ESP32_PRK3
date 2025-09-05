@@ -18,7 +18,9 @@ bool deviceConnected = false;
 bool oldDeviceConnected = false;
 uint32_t value = 0;
 
-const char* ble_ssid = "FanyuIsGood";
+// BLE SSID 預設為 SN
+String ble_ssid_str = getSNInfo().sn;
+const char* ble_ssid = ble_ssid_str.c_str();
 
 class ServerCallbacks : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) override {
@@ -179,8 +181,7 @@ void ble_init(void) {
   // NimBLEDevice::setSecurityPasskey(666666);
   // NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY); /** Display only passkey */
 
-  NimBLEAdvertisementData advData;
-  advData.setName(ble_ssid); //for android,local name
+
   
   NimBLEServer* pServer = NimBLEDevice::createServer();
   pServer->setCallbacks(&serverCallbacks);
@@ -202,10 +203,22 @@ void ble_init(void) {
   pAdvertising->enableScanResponse(false);
   pAdvertising->setAdvertisingCompleteCallback(onAdvComplete);
 
+  NimBLEAdvertisementData advData;
+  advData.setName(ble_ssid); //for android,local name
   pAdvertising->setAdvertisementData(advData);
 
   pAdvertising->start();
   Serial.println("[BLE] Waiting a client connection to notify...");
+}
+
+// 停用 BLE 廣播與服務
+void ble_deinit(void) {
+    NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
+    if (pAdvertising) {
+        pAdvertising->stop();
+    }
+    NimBLEDevice::deinit(true);
+    Serial.println("[BLE] Disabled");
 }
 
 
