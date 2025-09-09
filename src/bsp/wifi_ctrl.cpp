@@ -5,7 +5,8 @@
 
 const char* ssid = "TP-Link_2.4g_CCBD";
 const char* password = "63504149";
-
+// const char* ssid = "s23ji";
+// const char* password = "0968671988";
 void wifi_init(void)
 {
   //STA

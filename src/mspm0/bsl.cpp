@@ -18,8 +18,13 @@
 #define TAG "BSL"
 
 // GPIO 定義
+#if CONFIG_IDF_TARGET_ESP32S3
+#define NRST_GPIO    GPIO_NUM_18
+#define BSL_GPIO     GPIO_NUM_19
+#else
 #define NRST_GPIO    GPIO_NUM_23//GPIO_NUM_18
 #define BSL_GPIO     GPIO_NUM_12//GPIO_NUM_19
+#endif
 
 // UART 定義
 #define UART_PORT    UART_NUM_1
