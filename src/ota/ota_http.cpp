@@ -137,7 +137,7 @@ void ota_http_func(const char* url,int fd) {
         if (fd != 0){
           doc.clear(); 
           res["command"] = "get_ota";
-          res["status"] = "success";
+          res["status"] = "Success";
           String jsonOut = toJson(res);
           send(fd, jsonOut.c_str(), jsonOut.length(), 0);
           
