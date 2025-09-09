@@ -9,6 +9,8 @@ const char* password = "63504149";
 
 bool is_mdns_started = false;
 
+// const char* ssid = "s23ji";
+// const char* password = "0968671988";
 void wifi_init(void)
 {
   //STA

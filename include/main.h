@@ -8,6 +8,8 @@
 #include <app/html_test.h>
 #include <app/nvs.h>
 #include <app/tcp_client.h>
+#include <app/json.h>
+
 
 #include <mspm0/bsl.h>
 #include <mspm0/modbus.h>

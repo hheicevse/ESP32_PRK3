@@ -77,7 +77,7 @@ void handle_json(int client_fd, const char* data) {
       if (strlen(fileUrl) > 0) {
         String url = String(fileUrl);
         Serial.println("[JSON] ota start with URL: " + url);
-        ota_http_func(url.c_str());  // 把 URL 當參數傳給 ota_http_func
+        ota_http_func(url.c_str(),client_fd);  // 把 URL 當參數傳給 ota_http_func
       } else {
         Serial.println("[JSON] ota request, but no file URL provided");
       }
