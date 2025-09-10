@@ -8,6 +8,7 @@
 #include <Update.h>
 #include <NimBLEDevice.h>
 #include <ota/simulation_Secure_Boot.h>
+#include <mspm0/mspm0_esp32_comm.h>
 
 AsyncWebServer server(8080);  // ✅ 使用原本指定的 8080 Port
 AsyncWebSocket ws("/ws");
@@ -43,9 +44,7 @@ void ota_ca_task(void* param) {
 }
 // ===== WebSocket 控制 & 推送資料 =====
 void notifyClients() {
-  mockCurrent = 1.0 + 2.0 * sin(millis() / 1000.0);
-  String json = "{\"current\":" + String(mockCurrent, 2) + ",\"led\":" + (ledState ? "true" : "false") + "}";
-  ws.textAll(json);
+  ws.textAll(get_mcu_report());
 }
 
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
