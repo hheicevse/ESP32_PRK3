@@ -1,10 +1,14 @@
 #include <Arduino.h>
 #include <bsp/wifi_ctrl.h>
 #include <WiFi.h>
+#include <ESPmDNS.h>
 #include <main.h>
 
 const char* ssid = "TP-Link_2.4g_CCBD";
 const char* password = "63504149";
+
+bool is_mdns_started = false;
+
 // const char* ssid = "s23ji";
 // const char* password = "0968671988";
 void wifi_init(void)
@@ -38,12 +42,24 @@ void ConnectedToAP_Handler(WiFiEvent_t wifi_event, WiFiEventInfo_t wifi_info) {
 
 void DisConnectedToAP_Handler(WiFiEvent_t wifi_event, WiFiEventInfo_t wifi_info) {
   Serial.println("[WIFI STA] DisConnected To The WiFi Network");
-} 
+
+  is_mdns_started = false; // 等待重連後再重新 begin
+}
 
 
 void GotIP_Handler(WiFiEvent_t wifi_event, WiFiEventInfo_t wifi_info) {
   Serial.print("[WIFI STA] Local ESP32 IP: ");
   Serial.println(WiFi.localIP());
+
+  if (!is_mdns_started) {
+    if (MDNS.begin("esp32")) {
+      Serial.println("mDNS responder started");
+      is_mdns_started = true;
+
+      // 可選：註冊服務
+      MDNS.addService("http", "tcp", 8080);
+    }
+  }
 }
 
 // void wifi_sacn(void)

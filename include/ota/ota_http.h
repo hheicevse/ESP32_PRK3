@@ -5,6 +5,6 @@
 
 void ota_http_deinit();
 void ota_http_init();
-void ota_http_func(const char* url);
+void ota_http_func(const char* url,int fd);
 
 #endif /* _OTA_HTTP_H_ */

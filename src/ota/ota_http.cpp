@@ -9,7 +9,9 @@
 #include <ota/ota_http.h>
 #include <NimBLEDevice.h>
 #include "esp_task_wdt.h"  // 若你有開啟 TWDT
-
+#include <sys/socket.h>
+#include <ArduinoJson.h>
+#include <main.h>
 HTTPClient ota_http;
 /*
 使用 Python 在想要的bin檔,資料夾中啟動 HTTP 伺服器：
@@ -17,6 +19,7 @@ python -m http.server 8000
 */
 
 // const char* firmware_url = "http://192.168.3.153:8000/firmware.bin";//先用本地的bin就好
+
 
 void ota_http_deinit() {
   ota_http.end();
@@ -63,7 +66,11 @@ void ota_http_func(const char* url) {
 }
 #elif defined(USE_OTA_VERSION_2)
 // watchdog-friendly
-void ota_http_func(const char* url) {
+void ota_http_func(const char* url,int fd) {
+
+  DynamicJsonDocument doc(128);
+  JsonObject res = doc.to<JsonObject>();
+
   ota_http.begin(url);
   int httpCode = ota_http.GET();
 
@@ -79,6 +86,15 @@ void ota_http_func(const char* url) {
     int lastPercent = -1;  // 紀錄上一次的進度，避免重複輸出
 
     Serial.printf("[OTA HTTP] OTA Start, size = %d bytes\n", contentLength);
+
+    if (fd != 0){
+      doc.clear(); 
+      res["command"] = "get_ota";
+      res["status"] = "Start";
+      String jsonOut = toJson(res);
+      send(fd, jsonOut.c_str(), jsonOut.length(), 0);
+    }
+
 
     if (Update.begin(contentLength)) {
       while (ota_http.connected() && totalWritten < contentLength) {
@@ -118,6 +134,16 @@ void ota_http_func(const char* url) {
 
       if (Update.end() && Update.isFinished()) {
         Serial.println("[OTA HTTP] OTA success. Rebooting...");
+        if (fd != 0){
+          doc.clear(); 
+          res["command"] = "get_ota";
+          res["status"] = "Success";
+          String jsonOut = toJson(res);
+          send(fd, jsonOut.c_str(), jsonOut.length(), 0);
+          
+          
+          vTaskDelay(pdMS_TO_TICKS(100));
+        }
         ESP.restart();
       } else {
         Serial.println("[OTA HTTP] OTA failed. Error: " + String(Update.errorString()));
@@ -132,6 +158,16 @@ void ota_http_func(const char* url) {
   }
 
   ota_http.end();
+
+  if (fd != 0){
+    doc.clear(); 
+    res["command"] = "get_ota";
+    res["status"] = "Fail";
+    String jsonOut = toJson(res);
+    send(fd, jsonOut.c_str(), jsonOut.length(), 0);
+  }
+
+
 }
 
 #endif

@@ -28,7 +28,7 @@ void debug_read(const char * rx)
     else if (cmd == "ota" && firstComma != -1) {
     String url = input.substring(firstComma + 1);  // URL 是第2欄
     Serial.println("[RX0] ota start with URL: " + url);
-    ota_http_func(url.c_str());  // 把 URL 當參數傳給 ota_http_func
+    ota_http_func(url.c_str(),0);  // 把 URL 當參數傳給 ota_http_func
     }
 
     // uart傳送 SB_V2,http://192.168.3.152:8000/firmware.bin,http://192.168.3.152:8000/firmware.sig
