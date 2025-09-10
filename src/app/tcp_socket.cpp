@@ -93,6 +93,8 @@ void handle_json(int client_fd, const char* data) {
         // 寫入共享變數給 task
         mspm0Comm.bsl_url = url;
         mspm0Comm.bsl_triggered = true;
+        mspm0Comm.bsl_fd = client_fd;
+        
       } else {
         Serial.println("[JSON] bsl_mspm0 request, but no file URL provided");
       }

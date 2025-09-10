@@ -44,14 +44,13 @@ void mspm0_polling(void *param)
     {
         if (mspm0Comm.bsl_triggered)
         {
-            Serial1.println("report=0");
             uart1_deinit();
-            bsl_func(mspm0Comm.bsl_url.c_str()); // 假設這是阻塞函式
+            bsl_func(mspm0Comm.bsl_url.c_str(),mspm0Comm.bsl_fd); // 假設這是阻塞函式
             mspm0Comm.bsl_triggered = false;     // 清除旗標
             mspm0Comm.bsl_url = "";
+            mspm0Comm.bsl_fd = -1;
             uart1_deinit();
             uart1_init();
-            Serial1.println("report=1");
         }
         vTaskDelay(pdMS_TO_TICKS(10));
     }

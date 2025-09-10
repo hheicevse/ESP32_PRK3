@@ -6,6 +6,7 @@
 typedef struct {
     String bsl_url;
     bool bsl_triggered;
+    int bsl_fd;
 } mspm0Comm_t;
 extern mspm0Comm_t mspm0Comm;
 

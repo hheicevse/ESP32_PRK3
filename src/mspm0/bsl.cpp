@@ -12,6 +12,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_http_client.h"
+#include <ArduinoJson.h>
 
 #include <main.h>
 
@@ -160,8 +161,8 @@ static bool bsl_wait_ack(int timeout_ms = 500) {
 }
 
 // 傳送一包資料（支援 1~128 bytes）
-static void bsl_send_packet(uint32_t address, const uint8_t *data, size_t len) {
-    if (len == 0 || len > 128) return;
+static bool bsl_send_packet(uint32_t address, const uint8_t *data, size_t len) {
+    if (len == 0 || len > 128) return 0;
     uint8_t packet[140] = {0};
     packet[0] = BSL_HEADER;
     packet[1] = len + 5;
@@ -183,18 +184,31 @@ static void bsl_send_packet(uint32_t address, const uint8_t *data, size_t len) {
     uart_wait_tx_done(UART_PORT, pdMS_TO_TICKS(100));
     // vTaskDelay(pdMS_TO_TICKS(500));
 
+    Serial.printf("[BSL] address : %08X\n", address);
     // 等待回應
     if (!bsl_wait_ack(500)) {
         // ESP_LOGE(TAG, "No ACK received for address %08X", address);
         Serial.printf("[BSL] ack timeout %08X\n", address);
-        // return false;
+        return false;
+    }
+    else
+    {
+        DynamicJsonDocument doc1(128);
+        JsonObject res1 = doc1.to<JsonObject>();
+        if (mspm0Comm.bsl_fd != 0){
+        doc1.clear(); 
+        res1["command"] = "get_ota_bsl";
+        res1["progress"] = address;
+        String jsonOut = toJson(res1);
+        send(mspm0Comm.bsl_fd, jsonOut.c_str(), jsonOut.length(), 0);
+        }
+        return true;
     }
 
 
-    Serial.printf("[BSL] address : %08X\n", address);
 }
 
-void bsl_send_firmware_http(const char* url) {
+void bsl_send_firmware_http(const char* url,int fd) {
     esp_http_client_config_t config = {
         .url = url,
         .timeout_ms = 10000,
@@ -212,6 +226,18 @@ void bsl_send_firmware_http(const char* url) {
     uint8_t data_buf[128];
     uint32_t address = 0;
     int data_len = 0;
+    bool ok = true;
+
+    DynamicJsonDocument doc(128);
+    JsonObject res = doc.to<JsonObject>();
+
+    if (fd != 0){
+      doc.clear(); 
+      res["command"] = "get_ota_bsl";
+      res["status"] = "Start";
+      String jsonOut = toJson(res);
+      send(fd, jsonOut.c_str(), jsonOut.length(), 0);
+    }
 
     while ((r = esp_http_client_read(client, buf, sizeof(buf))) > 0) {
          vTaskDelay(pdMS_TO_TICKS(1));
@@ -224,7 +250,7 @@ void bsl_send_firmware_http(const char* url) {
 
                 if (line[0] == '@') {
                     if (data_len > 0) {
-                        bsl_send_packet(address, data_buf, data_len);
+                        ok &= bsl_send_packet(address, data_buf, data_len);
                         address += data_len;
                         data_len = 0;
                     }
@@ -238,7 +264,7 @@ void bsl_send_firmware_http(const char* url) {
                             uint8_t byte = (uint8_t)strtol(token, NULL, 16);
                             data_buf[data_len++] = byte;
                             if (data_len == 128) {
-                                bsl_send_packet(address, data_buf, 128);
+                                ok &= bsl_send_packet(address, data_buf, 128);
                                 address += 128;
                                 data_len = 0;
                             }
@@ -246,6 +272,7 @@ void bsl_send_firmware_http(const char* url) {
                         token = strtok(NULL, " ");
                     }
                 }
+                if(ok==false)break;
                 len = 0;
             } else if (len < sizeof(line) - 1) {
                 line[len++] = ch;
@@ -254,17 +281,27 @@ void bsl_send_firmware_http(const char* url) {
     }
     
     if (data_len > 0) {
-        bsl_send_packet(address, data_buf, data_len);
+        ok &= bsl_send_packet(address, data_buf, data_len);
     }
     esp_http_client_close(client);
     esp_http_client_cleanup(client);
     Serial.println("[BSL] Firmware sent via HTTP");
+    Serial.println( ok ? "[BSL] Success" : "[BSL] Fail");
+
+    if (fd != 0){
+      doc.clear(); 
+      res["command"] = "get_ota_bsl";
+      res["status"] = ok ? "Success" : "Fail";
+      String jsonOut = toJson(res);
+      send(fd, jsonOut.c_str(), jsonOut.length(), 0);
+    }
+
 }
 
 
 
 
-void bsl_func(const char* url)
+void bsl_func(const char* url,int fd)
 {
     bsl_init_gpio();
     bsl_init_uart();
@@ -279,7 +316,7 @@ void bsl_func(const char* url)
 
     Serial.println("[BSL] bsl_start");
 
-    bsl_send_firmware_http(url);// receive 00 08 02 00 3B 00 38 02 94 82
+    bsl_send_firmware_http(url,fd);// receive 00 08 02 00 3B 00 38 02 94 82
 
     build_simple_packet(CMD_START_APP);// receive 00
     exit_bsl_mode();
