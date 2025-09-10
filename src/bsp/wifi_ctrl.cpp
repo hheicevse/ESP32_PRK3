@@ -4,13 +4,17 @@
 #include <ESPmDNS.h>
 #include <main.h>
 
-const char* ssid = "TP-Link_2.4g_CCBD";
-const char* password = "63504149";
+// const char* ssid = "TP-Link_2.4g_CCBD";
+// const char* password = "63504149";
+// const char* ssid = "s23ji";
+// const char* password = "0968671988";
+
+// AP SSID 預設為 SN
+String ap_sn_str = getSNInfo().sn;
+const char* ap_ssid = ap_sn_str.c_str();
 
 bool is_mdns_started = false;
 
-// const char* ssid = "s23ji";
-// const char* password = "0968671988";
 void wifi_init(void)
 {
   //STA
@@ -23,12 +27,15 @@ void wifi_init(void)
   WiFi.onEvent(DisConnectedToAP_Handler, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   
   WiFi.onEvent(GotIP_Handler, ARDUINO_EVENT_WIFI_STA_GOT_IP);
-  WiFi.begin(ssid, password);
+
+  String ssid, pwd;
+  loadWiFiCredentials(ssid, pwd);
+  WiFi.begin(ssid, pwd);
   Serial.println("[WIFI STA] Connecting to WiFi Network ..");
 
 
   // AP
-  WiFi.softAP("ESP32_AP", "12345678");
+  WiFi.softAP(ap_ssid, "12345678");
   IPAddress ap_ip = WiFi.softAPIP();
   Serial.printf("[WIFI AP] IP: %s\n", ap_ip.toString().c_str());
   // 開 AP server (502)
@@ -52,7 +59,10 @@ void GotIP_Handler(WiFiEvent_t wifi_event, WiFiEventInfo_t wifi_info) {
   Serial.println(WiFi.localIP());
 
   if (!is_mdns_started) {
-    if (MDNS.begin("esp32")) {
+    if (MDNS.begin(ap_sn_str)) {
+      // 延遲確保 mDNS 已啟動
+      delay(100);
+
       Serial.println("mDNS responder started");
       is_mdns_started = true;
 

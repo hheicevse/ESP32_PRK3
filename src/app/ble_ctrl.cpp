@@ -19,8 +19,8 @@ bool oldDeviceConnected = false;
 uint32_t value = 0;
 
 // BLE SSID 預設為 SN
-String ble_ssid_str = getSNInfo().sn;
-const char* ble_ssid = ble_ssid_str.c_str();
+String ble_sn_str = getSNInfo().sn;
+const char* ble_ssid = ble_sn_str.c_str();
 
 class ServerCallbacks : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) override {
