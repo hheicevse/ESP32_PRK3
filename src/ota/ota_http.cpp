@@ -89,7 +89,7 @@ void ota_http_func(const char* url,int fd) {
 
     if (fd != 0){
       doc.clear(); 
-      res["command"] = "get_ota";
+      res["command"] = "get_ota_esp32";
       res["status"] = "Start";
       String jsonOut = toJson(res);
       send(fd, jsonOut.c_str(), jsonOut.length(), 0);
@@ -119,9 +119,16 @@ void ota_http_func(const char* url,int fd) {
               Serial.printf("[OTA HTTP] Progress: %d%% (%d/%d bytes)\n",
                             percent, (int)totalWritten, contentLength);
               lastPercent = percent;
+
+              if (fd != 0){
+                doc.clear(); 
+                res["command"] = "get_ota_esp32";
+                res["progress"] = percent;
+                String jsonOut = toJson(res);
+                send(fd, jsonOut.c_str(), jsonOut.length(), 0);
+              }
+
             }
-
-
           }
         }
 
@@ -136,14 +143,12 @@ void ota_http_func(const char* url,int fd) {
         Serial.println("[OTA HTTP] OTA success. Rebooting...");
         if (fd != 0){
           doc.clear(); 
-          res["command"] = "get_ota";
+          res["command"] = "get_ota_esp32";
           res["status"] = "Success";
           String jsonOut = toJson(res);
           send(fd, jsonOut.c_str(), jsonOut.length(), 0);
-          
-          
-          vTaskDelay(pdMS_TO_TICKS(100));
         }
+        vTaskDelay(pdMS_TO_TICKS(500));
         ESP.restart();
       } else {
         Serial.println("[OTA HTTP] OTA failed. Error: " + String(Update.errorString()));
@@ -161,7 +166,7 @@ void ota_http_func(const char* url,int fd) {
 
   if (fd != 0){
     doc.clear(); 
-    res["command"] = "get_ota";
+    res["command"] = "get_ota_esp32";
     res["status"] = "Fail";
     String jsonOut = toJson(res);
     send(fd, jsonOut.c_str(), jsonOut.length(), 0);
