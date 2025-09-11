@@ -3,8 +3,8 @@
 #include <WiFi.h>
 #include <main.h>
 
-const char* ssid = "TP-Link_2.4g_CCBD";
-const char* password = "63504149";
+// const char* ssid = "TP-Link_2.4g_CCBD";
+// const char* password = "63504149";
 // const char* ssid = "s23ji";
 // const char* password = "0968671988";
 void wifi_init(void)
@@ -19,7 +19,13 @@ void wifi_init(void)
   WiFi.onEvent(DisConnectedToAP_Handler, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   
   WiFi.onEvent(GotIP_Handler, ARDUINO_EVENT_WIFI_STA_GOT_IP);
-  WiFi.begin(ssid, password);
+  // WiFi.begin(ssid, password);
+
+
+  String ssid, pwd;
+  loadWiFiCredentials(ssid, pwd);
+  WiFi.begin(ssid.c_str(), pwd.c_str());
+
   Serial.println("[WIFI STA] Connecting to WiFi Network ..");
 
 
