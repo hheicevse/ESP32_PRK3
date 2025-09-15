@@ -204,8 +204,13 @@ void ble_init(void) {
   pAdvertising->enableScanResponse(false);
   pAdvertising->setAdvertisingCompleteCallback(onAdvComplete);
 
+  // 自己塞 advData（尤其是 Local Name）時，覆蓋了 SDK 自動產生的 Service UUID 廣播資料，
+  // 導致掃描端無法再用「Service UUID filter」去找到裝置
+  // 因為一旦你呼叫 setAdvertisementData(advData)，原本的 Service UUID 廣播資料就被清空，只廣播了名字。
+  // 想要 同時廣播名字 + Service UUID，需要自己手動把兩個都塞進去
   NimBLEAdvertisementData advData;
   advData.setName(ble_ssid); //for android,local name
+  advData.addServiceUUID(SERVICE_UUID); // 把 Service UUID 加回去
   pAdvertising->setAdvertisementData(advData);
 
   pAdvertising->start();
