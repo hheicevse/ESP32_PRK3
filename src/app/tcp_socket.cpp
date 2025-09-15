@@ -53,13 +53,14 @@ void handle_json(int client_fd, const char* data) {
     const char* cmd = obj["command"];
     if (!cmd) continue;
 
+    JsonObject res = response.createNestedObject();
     if (strcmp(cmd, "get_status") == 0) {
      float mockCurrent = 1.0 + 2.0 * sin(millis() / 1000.0);
       mockvoltage = (mockvoltage + 1) % 10;
-      JsonObject res = response.createNestedObject();
       res["command"] = "get_status";
       res["voltage"] = 12.5 + mockvoltage;
       res["current"] = roundf(mockCurrent * 100) / 100.0;  // ✅ 保留兩位小數但是數字
+      send_json(client_fd, response);
     } else if (strcmp(cmd, "set_level") == 0) {
       float l1 = obj["level1"] | 0.0;
       float l2 = obj["level2"] | 0.0;
@@ -73,6 +74,9 @@ void handle_json(int client_fd, const char* data) {
 
     // [{"command":"ota","file":"http://192.168.3.180:8000/firmware.bin"}]
     else if (strcmp(cmd, "ota") == 0) {
+      res["command"] = "get_ota";
+      res["status"] = "received";
+      send_json(client_fd, response);
       const char* fileUrl = obj["file"] | "";
       if (strlen(fileUrl) > 0) {
         String url = String(fileUrl);
@@ -85,6 +89,9 @@ void handle_json(int client_fd, const char* data) {
     
     // [{"command":"bsl_mspm0","file":"http://192.168.3.180:8000/Dan_TI_3507.txt"}]
     else if (strcmp(cmd, "bsl_mspm0") == 0) {
+      res["command"] = "get_bsl_mspm0";
+      res["status"] = "received";
+      send_json(client_fd, response);
       const char* fileUrl = obj["file"] | "";
       if (strlen(fileUrl) > 0) {
         String url = String(fileUrl);
@@ -102,10 +109,10 @@ void handle_json(int client_fd, const char* data) {
 
 
   }
-
-  if (!response.isNull()) {
-    send_json(client_fd, response);
-  }
+  response.clear();
+  // if (!response.isNull()) {
+  //   send_json(client_fd, response);
+  // }
 }
 
 
