@@ -18,7 +18,7 @@ bool deviceConnected = false;
 bool oldDeviceConnected = false;
 uint32_t value = 0;
 
-const char* ble_ssid = "FanyuIsGood";
+const char* ble_ssid = "PRK_DEMO";
 
 class ServerCallbacks : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) override {
