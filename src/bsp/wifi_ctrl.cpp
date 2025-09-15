@@ -27,10 +27,13 @@ void wifi_init(void)
   WiFi.onEvent(DisConnectedToAP_Handler, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   
   WiFi.onEvent(GotIP_Handler, ARDUINO_EVENT_WIFI_STA_GOT_IP);
+  // WiFi.begin(ssid, password);
+
 
   String ssid, pwd;
   loadWiFiCredentials(ssid, pwd);
-  WiFi.begin(ssid, pwd);
+  WiFi.begin(ssid.c_str(), pwd.c_str());
+
   Serial.println("[WIFI STA] Connecting to WiFi Network ..");
 
 

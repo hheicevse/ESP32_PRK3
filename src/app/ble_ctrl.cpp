@@ -21,6 +21,7 @@ uint32_t value = 0;
 // BLE SSID 預設為 SN
 String ble_sn_str = getSNInfo().sn;
 const char* ble_ssid = ble_sn_str.c_str();
+// const char* ble_ssid = "PRK_DEMO";
 
 class ServerCallbacks : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) override {
