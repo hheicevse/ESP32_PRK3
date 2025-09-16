@@ -193,15 +193,15 @@ static bool bsl_send_packet(uint32_t address, const uint8_t *data, size_t len) {
     }
     else
     {
-        DynamicJsonDocument doc1(128);
-        JsonObject res1 = doc1.to<JsonObject>();
-        if (mspm0Comm.bsl_fd != 0){
-        doc1.clear(); 
-        res1["command"] = "get_ota_bsl";
-        res1["progress"] = address;
-        String jsonOut = toJson(res1);
-        send(mspm0Comm.bsl_fd, jsonOut.c_str(), jsonOut.length(), 0);
-        }
+        // DynamicJsonDocument doc1(128);
+        // JsonObject res1 = doc1.to<JsonObject>();
+        // if (mspm0Comm.bsl_fd != 0){
+        // doc1.clear(); 
+        // res1["command"] = "get_ota_bsl";
+        // res1["progress"] = address;
+        // String jsonOut = toJson(res1);
+        // send(mspm0Comm.bsl_fd, jsonOut.c_str(), jsonOut.length(), 0);
+        // }
         return true;
     }
 
@@ -225,6 +225,10 @@ void bsl_send_firmware_http(const char* url, int fd) {
     bool ok = true;
 
     if (httpCode == HTTP_CODE_OK) {
+        // ✅ 取得 Content-Length，計算進度用
+        int contentLength = http.getSize();
+        Serial.printf("[BSL] Firmware size = %d bytes\n", contentLength);
+
         WiFiClient& stream = http.getStream();
         char line[256] = {0};
         int len = 0;
@@ -232,11 +236,14 @@ void bsl_send_firmware_http(const char* url, int fd) {
         uint32_t address = 0;
         int data_len = 0;
 
-
+        // ✅ 累計讀取大小
+        uint32_t totalRead = 0;
+        int lastPercent = -1;  // 紀錄上一次的進度，避免重複輸出
 
         while (http.connected()) {
             while (stream.available()) {
                 char ch = stream.read();
+                totalRead++;  // ✅ 每次讀一個字元就累加
                 if (ch == '\n' || ch == '\r') {
                     if (len == 0) continue;
                     line[len] = '\0';
@@ -269,6 +276,24 @@ void bsl_send_firmware_http(const char* url, int fd) {
                 } else if (len < sizeof(line) - 1) {
                     line[len++] = ch;
                 }
+
+                // ✅ 顯示進度
+                if (contentLength > 0) {
+                    int percent = (int)((totalRead * 100) / contentLength);
+                    if (percent != lastPercent) {
+                        Serial.printf("[BSL] Progress: %d%% (%d/%d bytes)\n",
+                                      percent, totalRead, contentLength);
+                        lastPercent = percent;
+
+                        if (fd != 0) {
+                            doc.clear();
+                            res["command"] = "get_ota_bsl";
+                            res["progress"] = percent;
+                            String jsonOut = toJson(res);
+                            send(fd, jsonOut.c_str(), jsonOut.length(), 0);
+                        }
+                    }
+                }
             }
             delay(1);
         }
@@ -291,7 +316,6 @@ void bsl_send_firmware_http(const char* url, int fd) {
         send(fd, jsonOut.c_str(), jsonOut.length(), 0);
     }
 }
-
 
 
 
