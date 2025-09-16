@@ -98,6 +98,24 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
                 } else if (strcmp(command, "get_wifi_ip") == 0) {
                     res["ip"]   = WiFi.localIP().toString();
                     res["port"] = String(SERVER_PORT_STA);
+                } else if (strcmp(command, "get_status") == 0) {
+                    float mockCurrent = 1.0 + 2.0 * sin(millis() / 1000.0);
+                    float mockvoltage = random(1, 11);
+                    res["voltage"] = 12.5 + mockvoltage;
+                    res["current"] = roundf(mockCurrent * 100) / 100.0;  // ✅ 保留兩位小數但是數字
+                } else if (strcmp(command, "get_max_current") == 0) {
+                    int max_current = loadSettingsKeyValue("max_current").toInt();
+                    res["max_current"] = max_current;
+                    res["status"] = "ok";
+                } else if (strcmp(command, "set_max_current") == 0) {
+                    saveSettingsKeyValue("max_current", String(obj["max_current"].as<int>() | 24));
+                    res["status"] = "ok";
+                } else if (strcmp(command, "get_delay_minutes") == 0) {
+                    res["delay_minutes"] = loadSettingsKeyValue("delay_minutes").toInt();
+                    res["status"] = "ok";
+                } else if (strcmp(command, "set_delay_minutes") == 0) {
+                    saveSettingsKeyValue("delay_minutes", String(obj["delay_minutes"].as<int>() | 0));
+                    res["status"] = "ok";
                 }
             }
 

@@ -26,3 +26,20 @@ void clearWiFiCredentials() {
   // prefs.remove("password");//只想刪掉某個 key
   prefs.end();
 }
+
+void saveSettingsKeyValue(const String& key, const String& value) {
+  prefs.begin("settings", false);  // 命名空間叫 settings
+  prefs.putString(key.c_str(), value);
+  prefs.end();
+}
+String loadSettingsKeyValue(const String& key) {
+  prefs.begin("settings", true);  // read-only 模式
+  String value = prefs.getString(key.c_str(), "");
+  prefs.end();
+  return value;
+}
+void clearSettings() {
+  prefs.begin("settings", false);  // false = read-write 模式
+  prefs.clear();                   // 清除該命名空間下所有 key
+  prefs.end();
+}

@@ -70,7 +70,39 @@ void handle_json(int client_fd, const char* data) {
       const char* p = obj["password"] | "";
       Serial.printf("[JSON] SSID: %s, PASSWORD: %s\n", s, p);
     }
+    else if (strcmp(cmd, "get_max_current") == 0)
+    {
+      int max_current = loadSettingsKeyValue("max_current").toInt();
+      res["max_current"] = max_current;
+      res["status"] = "ok";
 
+      res["command"] = "get_max_current";
+      send_json(client_fd, response);
+    }
+    else if (strcmp(cmd, "set_max_current") == 0)
+    {
+      saveSettingsKeyValue("max_current", String(obj["max_current"].as<int>() | 24));
+      res["status"] = "ok";
+
+      res["command"] = "set_max_current";
+      send_json(client_fd, response);
+    }
+    else if (strcmp(cmd, "get_delay_minutes") == 0)
+    {
+      res["delay_minutes"] = loadSettingsKeyValue("delay_minutes").toInt();
+      res["status"] = "ok";
+
+      res["command"] = "get_delay_minutes";
+      send_json(client_fd, response);
+    }
+    else if (strcmp(cmd, "set_delay_minutes") == 0)
+    {
+      saveSettingsKeyValue("delay_minutes", String(obj["delay_minutes"].as<int>() | 0));
+      res["status"] = "ok";
+
+      res["command"] = "set_delay_minutes";
+      send_json(client_fd, response);
+    }
 
     // [{"command":"ota","file":"http://192.168.3.180:8000/firmware.bin"}]
     else if (strcmp(cmd, "ota") == 0) {
