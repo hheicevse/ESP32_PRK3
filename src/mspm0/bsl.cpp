@@ -193,109 +193,128 @@ static bool bsl_send_packet(uint32_t address, const uint8_t *data, size_t len) {
     }
     else
     {
-        DynamicJsonDocument doc1(128);
-        JsonObject res1 = doc1.to<JsonObject>();
-        if (mspm0Comm.bsl_fd != 0){
-        doc1.clear(); 
-        res1["command"] = "get_ota_bsl";
-        res1["progress"] = address;
-        String jsonOut = toJson(res1);
-        send(mspm0Comm.bsl_fd, jsonOut.c_str(), jsonOut.length(), 0);
-        }
+        // DynamicJsonDocument doc1(128);
+        // JsonObject res1 = doc1.to<JsonObject>();
+        // if (mspm0Comm.bsl_fd != 0){
+        // doc1.clear(); 
+        // res1["command"] = "get_ota_bsl";
+        // res1["progress"] = address;
+        // String jsonOut = toJson(res1);
+        // send(mspm0Comm.bsl_fd, jsonOut.c_str(), jsonOut.length(), 0);
+        // }
         return true;
     }
 
 
 }
 
-void bsl_send_firmware_http(const char* url,int fd) {
-    esp_http_client_config_t config = {
-        .url = url,
-        .timeout_ms = 10000,
-    };
-    esp_http_client_handle_t client = esp_http_client_init(&config);
-    if (esp_http_client_open(client, 0) != ESP_OK) {
-        Serial.println("[BSL] Failed to open HTTP connection");
-        return;
-    }
-    esp_http_client_fetch_headers(client);
-    char buf[512];
-    int r;
-    char line[256] = {0};
-    int len = 0;
-    uint8_t data_buf[128];
-    uint32_t address = 0;
-    int data_len = 0;
-    bool ok = true;
-
+void bsl_send_firmware_http(const char* url, int fd) {
     DynamicJsonDocument doc(128);
     JsonObject res = doc.to<JsonObject>();
-
     if (fd != 0){
-      doc.clear(); 
-      res["command"] = "get_ota_bsl";
-      res["status"] = "Start";
-      String jsonOut = toJson(res);
-      send(fd, jsonOut.c_str(), jsonOut.length(), 0);
+        doc.clear(); 
+        res["command"] = "get_ota_bsl";
+        res["status"] = "Start";
+        String jsonOut = toJson(res);
+        send(fd, jsonOut.c_str(), jsonOut.length(), 0);
     }
 
-    while ((r = esp_http_client_read(client, buf, sizeof(buf))) > 0) {
-         vTaskDelay(pdMS_TO_TICKS(1));
-        for (int i = 0; i < r; i++) {
-            char ch = buf[i];
-            if (ch == '\n' || ch == '\r') {
-                if (len == 0) continue;
-                line[len] = '\0';
-                // Serial.printf("[BSL] LINE: %s", line);
+    HTTPClient http;
+    http.begin(url);
+    int httpCode = http.GET();
+    bool ok = true;
 
-                if (line[0] == '@') {
-                    if (data_len > 0) {
-                        ok &= bsl_send_packet(address, data_buf, data_len);
-                        address += data_len;
-                        data_len = 0;
-                    }
-                    address = (uint32_t)strtol(line + 1, NULL, 16);
-                } else if (line[0] == 'q') {
-                    break;
-                } else {
-                    char *token = strtok(line, " ");
-                    while (token != NULL) {
-                        if (strlen(token) > 0) {
-                            uint8_t byte = (uint8_t)strtol(token, NULL, 16);
-                            data_buf[data_len++] = byte;
-                            if (data_len == 128) {
-                                ok &= bsl_send_packet(address, data_buf, 128);
-                                address += 128;
-                                data_len = 0;
-                            }
+    if (httpCode == HTTP_CODE_OK) {
+        // ✅ 取得 Content-Length，計算進度用
+        int contentLength = http.getSize();
+        Serial.printf("[BSL] Firmware size = %d bytes\n", contentLength);
+
+        WiFiClient& stream = http.getStream();
+        char line[256] = {0};
+        int len = 0;
+        uint8_t data_buf[128];
+        uint32_t address = 0;
+        int data_len = 0;
+
+        // ✅ 累計讀取大小
+        uint32_t totalRead = 0;
+        int lastPercent = -1;  // 紀錄上一次的進度，避免重複輸出
+
+        while (http.connected()) {
+            while (stream.available()) {
+                char ch = stream.read();
+                totalRead++;  // ✅ 每次讀一個字元就累加
+                if (ch == '\n' || ch == '\r') {
+                    if (len == 0) continue;
+                    line[len] = '\0';
+
+                    if (line[0] == '@') {
+                        if (data_len > 0) {
+                            ok &= bsl_send_packet(address, data_buf, data_len);
+                            address += data_len;
+                            data_len = 0;
                         }
-                        token = strtok(NULL, " ");
+                        address = (uint32_t)strtol(line + 1, NULL, 16);
+                    } else if (line[0] == 'q') {
+                        break;
+                    } else {
+                        char *token = strtok(line, " ");
+                        while (token != NULL) {
+                            if (strlen(token) > 0) {
+                                uint8_t byte = (uint8_t)strtol(token, NULL, 16);
+                                data_buf[data_len++] = byte;
+                                if (data_len == 128) {
+                                    ok &= bsl_send_packet(address, data_buf, 128);
+                                    address += 128;
+                                    data_len = 0;
+                                }
+                            }
+                            token = strtok(NULL, " ");
+                        }
+                    }
+                    len = 0;
+                } else if (len < sizeof(line) - 1) {
+                    line[len++] = ch;
+                }
+
+                // ✅ 顯示進度
+                if (contentLength > 0) {
+                    int percent = (int)((totalRead * 100) / contentLength);
+                    if (percent != lastPercent) {
+                        Serial.printf("[BSL] Progress: %d%% (%d/%d bytes)\n",
+                                      percent, totalRead, contentLength);
+                        lastPercent = percent;
+
+                        if (fd != 0) {
+                            doc.clear();
+                            res["command"] = "get_ota_bsl";
+                            res["progress"] = percent;
+                            String jsonOut = toJson(res);
+                            send(fd, jsonOut.c_str(), jsonOut.length(), 0);
+                        }
                     }
                 }
-                if(ok==false)break;
-                len = 0;
-            } else if (len < sizeof(line) - 1) {
-                line[len++] = ch;
             }
+            delay(1);
         }
+
+        if (data_len > 0) {
+            ok &= bsl_send_packet(address, data_buf, data_len);
+        }
+        http.end();
+        Serial.println(ok ? "[BSL] Success" : "[BSL] Fail");
+    } else {
+        Serial.printf("[BSL] HTTP GET failed, code: %d\n", httpCode);
+        ok = false;
     }
     
-    if (data_len > 0) {
-        ok &= bsl_send_packet(address, data_buf, data_len);
-    }
-    esp_http_client_close(client);
-    esp_http_client_cleanup(client);
-    Serial.println("[BSL] Firmware sent via HTTP");
-    Serial.println( ok ? "[BSL] Success" : "[BSL] Fail");
-
     if (fd != 0){
-      doc.clear(); 
-      res["command"] = "get_ota_bsl";
-      res["status"] = ok ? "Success" : "Fail";
-      String jsonOut = toJson(res);
-      send(fd, jsonOut.c_str(), jsonOut.length(), 0);
+        doc.clear(); 
+        res["command"] = "get_ota_bsl";
+        res["status"] = ok ? "Success" : "Fail";
+        String jsonOut = toJson(res);
+        send(fd, jsonOut.c_str(), jsonOut.length(), 0);
     }
-
 }
 
 
