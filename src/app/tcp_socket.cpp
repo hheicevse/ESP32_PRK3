@@ -32,6 +32,16 @@ void send_json(int fd, JsonDocument& doc) {
   Serial.println(out);
 }
 
+void send_response(int client_fd, StaticJsonDocument<512>& response,
+                   const char* command, std::function<void(JsonObject&)> fillExtra = nullptr) {
+  response.clear();
+  JsonObject res = response.createNestedObject();
+  res["command"] = command;
+  if (fillExtra) fillExtra(res);   // 允許呼叫端額外塞欄位
+  send_json(client_fd, response);
+}
+
+
 void handle_json(int client_fd, const char* data) {
   StaticJsonDocument<512> doc;
   DeserializationError error = deserializeJson(doc, data);
@@ -53,14 +63,16 @@ void handle_json(int client_fd, const char* data) {
     const char* cmd = obj["command"];
     if (!cmd) continue;
 
-    JsonObject res = response.createNestedObject();
+
     if (strcmp(cmd, "get_status") == 0) {
      float mockCurrent = 1.0 + 2.0 * sin(millis() / 1000.0);
       mockvoltage = (mockvoltage + 1) % 10;
-      res["command"] = "get_status";
-      res["voltage"] = 12.5 + mockvoltage;
-      res["current"] = roundf(mockCurrent * 100) / 100.0;  // ✅ 保留兩位小數但是數字
-      send_json(client_fd, response);
+      send_response(client_fd, response, "get_status", [&](JsonObject& res){
+        res["voltage"] = 12.5 + mockvoltage;
+        res["current"] = roundf(mockCurrent * 100) / 100.0;
+      });
+
+
     } else if (strcmp(cmd, "set_level") == 0) {
       float l1 = obj["level1"] | 0.0;
       float l2 = obj["level2"] | 0.0;
@@ -74,9 +86,9 @@ void handle_json(int client_fd, const char* data) {
 
     // [{"command":"ota","file":"http://192.168.3.180:8000/firmware.bin"}]
     else if (strcmp(cmd, "ota") == 0) {
-      res["command"] = "get_ota";
-      res["status"] = "received";
-      send_json(client_fd, response);
+      send_response(client_fd, response, "get_ota", [](JsonObject& res){
+        res["status"] = "received";
+      });
       const char* fileUrl = obj["file"] | "";
       if (strlen(fileUrl) > 0) {
         String url = String(fileUrl);
@@ -89,21 +101,29 @@ void handle_json(int client_fd, const char* data) {
     
     // [{"command":"bsl_mspm0","file":"http://192.168.3.180:8000/Dan_TI_3507.txt"}]
     else if (strcmp(cmd, "bsl_mspm0") == 0) {
-      res["command"] = "get_bsl_mspm0";
-      res["status"] = "received";
-      send_json(client_fd, response);
+      send_response(client_fd, response, "get_bsl_mspm0", [](JsonObject& res){
+        res["status"] = "received";
+      });
       const char* fileUrl = obj["file"] | "";
       if (strlen(fileUrl) > 0) {
         String url = String(fileUrl);
         Serial.println("[JSON] bsl_mspm0 start with URL: " + url);
-
-        // 寫入共享變數給 task
-        mspm0Comm.bsl_url = url;
-        mspm0Comm.bsl_triggered = true;
-        mspm0Comm.bsl_fd = client_fd;
-        
+        if (mspm0Comm.bsl_triggered == true){
+          send_response(client_fd, response, "get_bsl_mspm0", [](JsonObject& res){
+            res["status"] = "Updating";
+          });
+        }
+        else{
+          // 寫入共享變數給 task
+          mspm0Comm.bsl_url = url;
+          mspm0Comm.bsl_triggered = true;
+          mspm0Comm.bsl_fd = client_fd;
+        }
       } else {
         Serial.println("[JSON] bsl_mspm0 request, but no file URL provided");
+        send_response(client_fd, response, "get_bsl_mspm0", [](JsonObject& res){
+          res["status"] = "url missing";
+        });
       }
     }
 

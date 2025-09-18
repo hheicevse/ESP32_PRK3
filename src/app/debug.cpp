@@ -45,9 +45,15 @@ void debug_read(const char * rx)
     // uart傳送  bsl_mspm0,http://192.168.3.153:8000/app2.txt
     // 然後 PC 端要打 python -m http.server 8000
     else if (cmd == "bsl_mspm0" && firstComma != -1) {
-        Serial.println("[RX0] bsl_mspm0 start with URL: " + cmd1);
-        mspm0Comm.bsl_url = cmd1;
-        mspm0Comm.bsl_triggered = true;
+        if (mspm0Comm.bsl_triggered == true){
+            Serial.println("[RX0] bsl_mspm0 is Updating ");
+        }
+        else{
+            Serial.println("[RX0] bsl_mspm0 start with URL: " + cmd1);
+            mspm0Comm.bsl_url = cmd1;
+            mspm0Comm.bsl_triggered = true;
+        }
+
     }
 
     // uart傳送  tcp_connect,192.168.3.153,502
