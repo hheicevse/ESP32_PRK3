@@ -44,17 +44,15 @@ void ota_ca_task(void* param) {
 }
 // ===== WebSocket 控制 & 推送資料 =====
 void notifyClients() {
-  ws.textAll(get_mcu_report());
+  ws.textAll(get_mcu_data());
 }
 
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
     String msg = String((char*)data, len);
-    if (msg == "toggleLED") {
-      ledState = !ledState;
-      digitalWrite(2, ledState ? HIGH : LOW);
-      notifyClients();
+    if (msg.startsWith("cset=")) { 
+      Serial1.println(msg);
     }
   }
 }
