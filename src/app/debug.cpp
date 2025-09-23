@@ -115,8 +115,16 @@ void debug_read(const char * rx)
         Serial.printf("[RX0] clear_ssid \n");
         clearWiFiCredentials();
     }
-
-
+    else if (cmd == "send_mcu") {
+        // send_mcu,init
+        // send_mcu,report=1
+        Serial1.println(cmd1);
+        Serial.println(cmd1);
+    }
+    else if (cmd == "get_mcu_data") {
+        // get_mcu_data
+        Serial.println(get_mcu_data());
+    }
     else {
         Serial.println("[RX0] Unknown or malformed command: " + input);
     }
