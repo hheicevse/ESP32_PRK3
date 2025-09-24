@@ -1,12 +1,10 @@
 #include <Arduino.h>
 #include <main.h>
+#define PRK3_VERSION "1.0.0"
 
 void setup() {
   uart0_init();
-    // RX 腳上拉
-  // pinMode(5, INPUT_PULLUP);
-  pinMode(2, OUTPUT);//選告GPIO 2作為輸出（黃色LED）
-  digitalWrite(2, HIGH);
+  Serial.printf("[BSP] VER:%s\n", PRK3_VERSION);
   // modbus_init();
   tmr_init();
   wifi_init();

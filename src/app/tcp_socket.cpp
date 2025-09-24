@@ -104,27 +104,52 @@ void handle_json(int client_fd, const char* data) {
       send_response(client_fd, response, "get_bsl_mspm0", [](JsonObject& res){
         res["status"] = "received";
       });
+
       const char* fileUrl = obj["file"] | "";
+      const char* status_cmd = obj["status"] | "";
+
       if (strlen(fileUrl) > 0) {
+        // file 模式
         String url = String(fileUrl);
         Serial.println("[JSON] bsl_mspm0 start with URL: " + url);
         if (mspm0Comm.bsl_triggered == true){
           send_response(client_fd, response, "get_bsl_mspm0", [](JsonObject& res){
             res["status"] = "Updating";
           });
-        }
-        else{
-          // 寫入共享變數給 task
+        } else {
           mspm0Comm.bsl_url = url;
           mspm0Comm.bsl_triggered = true;
           mspm0Comm.bsl_fd = client_fd;
         }
-      } else {
-        Serial.println("[JSON] bsl_mspm0 request, but no file URL provided");
+      }
+      else if (strlen(status_cmd) > 0) {
+        // status 模式
+        if (strcmp(status_cmd, "reset") == 0) {
+          Serial.println("[JSON] bsl_mspm0 received RESET command");
+
+          mspm0Comm.bsl_triggered = false;
+          mspm0Comm.bsl_url = "";
+          mspm0Comm.bsl_fd = -1;
+
+          send_response(client_fd, response, "get_bsl_mspm0", [](JsonObject& res){
+            res["status"] = "reset triggered";
+          });
+        } else {
+          Serial.printf("[JSON] bsl_mspm0 unknown status: %s\n", status_cmd);
+          send_response(client_fd, response, "get_bsl_mspm0", [&](JsonObject& res){
+            res["status"] = String("unknown status: ") + status_cmd;
+          });
+        }
+      }
+      else {
+        // 兩個欄位都沒有
+        Serial.println("[JSON] bsl_mspm0 request, but no file URL or status provided");
         send_response(client_fd, response, "get_bsl_mspm0", [](JsonObject& res){
-          res["status"] = "url missing";
+          res["status"] = "url/status missing";
         });
       }
+    
+
     }
 
 

@@ -294,7 +294,12 @@ void bsl_send_firmware_http(const char* url, int fd) {
                         }
                     }
                 }
+                if (mspm0Comm.bsl_triggered == false)
+                    break;
             }
+            
+            if (mspm0Comm.bsl_triggered == false)
+                break;
             delay(1);
         }
 

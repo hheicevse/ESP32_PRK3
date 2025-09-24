@@ -53,6 +53,8 @@ void IRAM_ATTR uart0_isr() {
 void uart0_init() {
   Serial.begin(115200);
   Serial.onReceive(uart0_isr);
+  Serial.print("[BSP] board: ");
+  Serial.println(ARDUINO_BOARD);
 }
 
 void uart0_deinit() {

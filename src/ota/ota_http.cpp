@@ -147,6 +147,7 @@ void ota_http_func(const char* url,int fd) {
           res["status"] = "Success";
           String jsonOut = toJson(res);
           send(fd, jsonOut.c_str(), jsonOut.length(), 0);
+          shutdown(fd, SHUT_WR);
         }
         vTaskDelay(pdMS_TO_TICKS(500));
         ESP.restart();
