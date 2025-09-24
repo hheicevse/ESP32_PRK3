@@ -149,7 +149,7 @@ void ota_http_func(const char* url,int fd) {
           send(fd, jsonOut.c_str(), jsonOut.length(), 0);
           shutdown(fd, SHUT_WR);
         }
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(1000));
         ESP.restart();
       } else {
         Serial.println("[OTA HTTP] OTA failed. Error: " + String(Update.errorString()));
