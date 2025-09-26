@@ -73,11 +73,21 @@ void handle_json(int client_fd, const char* data) {
       });
 
 
-    } else if (strcmp(cmd, "set_level") == 0) {
+    }
+    
+    else if (strcmp(cmd, "get_esp32_ver") == 0) {
+      send_response(client_fd, response, "get_esp32_ver", [&](JsonObject& res){
+        res["ver"] = VERSION;
+        res["build_date"] = BUILD_DATE;
+        res["build_time"] = BUILD_TIME;
+      });
+    }
+    else if (strcmp(cmd, "set_level") == 0) {
       float l1 = obj["level1"] | 0.0;
       float l2 = obj["level2"] | 0.0;
       Serial.printf("[JSON] Level1: %.2f, Level2: %.2f\n", l1, l2);
-    } else if (strcmp(cmd, "set_ssid_pwd") == 0) {
+    }
+    else if (strcmp(cmd, "set_ssid_pwd") == 0) {
       const char* s = obj["ssid"] | "";
       const char* p = obj["password"] | "";
       Serial.printf("[JSON] SSID: %s, PASSWORD: %s\n", s, p);

@@ -1,10 +1,10 @@
 #include <Arduino.h>
 #include <main.h>
-#define PRK3_VERSION "1.0.0"
 
 void setup() {
   uart0_init();
-  Serial.printf("[BSP] VER:%s\n", PRK3_VERSION);
+  Serial.printf("[BSP] VER:%s, BUILD:%s %s\n", VERSION, BUILD_DATE, BUILD_TIME);
+
   // modbus_init();
   tmr_init();
   wifi_init();

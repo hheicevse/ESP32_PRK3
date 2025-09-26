@@ -115,6 +115,14 @@ void debug_read(const char * rx)
         Serial.printf("[RX0] clear_ssid \n");
         clearWiFiCredentials();
     }
+    // uart傳送 get_ip
+    else if (cmd == "get_ip") {
+        Serial.println("[RX0] ip," +  WiFi.localIP().toString() + ",port," + String(SERVER_PORT_STA));     
+    }
+    // uart傳送 get_esp32_ver
+    else if (cmd == "get_esp32_ver") {
+        Serial.println("[RX0] ver," + String(VERSION) + ",BUILD," + String(BUILD_DATE) + "," + String(BUILD_TIME));     
+    }
     else if (cmd == "send_mcu") {
         // send_mcu,init
         // send_mcu,report=1
